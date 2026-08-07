@@ -15,5 +15,5 @@ export const fallbackPlayers = [
   id,name,team,position,pts,reb,ast,stl,blk,tov,fgPct,ftPct,threeMade,value,gp:72,min:34.1,threePct:36.8,
   status:'active', age:null, teamName:team, teamLogo:`https://a.espncdn.com/i/teamlogos/nba/500/${team.toLowerCase()}.png`,
   headshot:`https://a.espncdn.com/i/headshots/nba/players/full/${id}.png`,
-  fantasyScore:Number((pts + reb*1.2 + ast*1.5 + stl*3 + blk*3 - tov + threeMade*.5).toFixed(1)),
+  fantasyScore:Number((pts + reb*1.2 + ast*1.5 + stl*3 + blk*3 + threeMade*.8 + (fgPct-45)*.55 + (ftPct-75)*.22).toFixed(1)),
 }))

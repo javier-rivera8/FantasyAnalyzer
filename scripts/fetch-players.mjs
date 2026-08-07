@@ -32,10 +32,12 @@ const players = payload.athletes.map((entry) => {
   const general = readCategory(entry, 'general')
   const offense = readCategory(entry, 'offensive')
   const defense = readCategory(entry, 'defensive')
+  // Valor diseñado específicamente para H2H 8-CAT: no penaliza turnovers e
+  // incorpora las dos categorías de eficiencia además de los seis conteos.
   const fantasyScore = (offense.avgPoints || 0) + (general.avgRebounds || 0) * 1.2 +
     (offense.avgAssists || 0) * 1.5 + (defense.avgSteals || 0) * 3 +
-    (defense.avgBlocks || 0) * 3 - (offense.avgTurnovers || 0) +
-    (offense.avgThreePointFieldGoalsMade || 0) * 0.5
+    (defense.avgBlocks || 0) * 3 + (offense.avgThreePointFieldGoalsMade || 0) * 0.8 +
+    ((offense.fieldGoalPct || 45) - 45) * 0.55 + ((offense.freeThrowPct || 75) - 75) * 0.22
 
   return {
     id: athlete.id,

@@ -16,15 +16,15 @@ const NAV = [
 ]
 
 const CATEGORY_META = [
-  ['pts', 'PTS'], ['reb', 'REB'], ['ast', 'AST'], ['stl', 'STL'], ['blk', 'BLK'],
-  ['threeMade', '3PM'], ['fgPct', 'FG%'], ['ftPct', 'FT%'], ['tov', 'TO'],
+  ['pts', 'PTS'], ['ftPct', 'FT%'], ['threeMade', '3PTM'], ['fgPct', 'FG%'],
+  ['ast', 'AST'], ['reb', 'REB'], ['stl', 'STL'], ['blk', 'BLK'],
 ]
 
 const STRATEGIES = [
-  { id: 'balanced', name: 'Balance total', kicker: 'Recomendado', copy: 'Valor sólido en las 9 categorías sin debilidades estructurales.', icon: Target },
+  { id: 'balanced', name: 'Balance total', kicker: 'Recomendado', copy: 'Valor sólido en las 8 categorías sin debilidades estructurales.', icon: Target },
   { id: 'punt-ft', name: 'Punt FT%', kicker: 'Big men', copy: 'Prioriza rebotes, tapones, FG% y volumen interior.', icon: Gauge },
   { id: 'small-ball', name: 'Small ball', kicker: 'Guard-heavy', copy: 'Maximiza triples, asistencias, robos y tiros libres.', icon: Zap },
-  { id: 'punt-ast', name: 'Punt AST', kicker: 'Eficiencia', copy: 'Reduce el costo de bases élite y domina porcentajes y pérdidas.', icon: Activity },
+  { id: 'punt-ast', name: 'Punt AST', kicker: 'Eficiencia', copy: 'Reduce el costo de bases élite y domina porcentajes, rebotes y tapones.', icon: Activity },
 ]
 
 const TEAM_COLORS = {
@@ -88,10 +88,6 @@ function Sidebar({ page, setPage, collapsed, setCollapsed }) {
           </button>
         ))}
       </nav>
-      <div className="sidebar-callout">
-        <Sparkles size={20} />
-        {!collapsed && <><strong>Baseline Pro</strong><p>Proyecciones avanzadas y alertas en vivo.</p><button>Explorar Pro <ArrowRight size={14} /></button></>}
-      </div>
       <div className="user-mini">
         <div className="avatar">JD</div>
         {!collapsed && <div><strong>Javier Díaz</strong><span>League Manager</span></div>}
@@ -156,9 +152,9 @@ function Dashboard({ players, setPage, openPlayer, roster }) {
         </div>
         <div className="metric-card">
           <div className="metric-head"><span>PROYECCIÓN SEMANAL</span><Activity size={18}/></div>
-          <strong>6—3</strong><p>vs. Santurce Ballers</p>
-          <div className="mini-progress"><span style={{width:'68%'}} /></div>
-          <small>68% probabilidad de ganar</small>
+          <strong>5—3</strong><p>vs. Santurce Ballers</p>
+          <div className="mini-progress"><span style={{width:'62.5%'}} /></div>
+          <small>62.5% probabilidad de ganar</small>
         </div>
         <div className="metric-card">
           <div className="metric-head"><span>VALOR DEL EQUIPO</span><Crown size={18}/></div>
@@ -176,20 +172,20 @@ function Dashboard({ players, setPage, openPlayer, roster }) {
         <div className="surface matchup-card">
           <div className="card-title-row">
             <div><span>PROYECCIÓN · SEMANA 18</span><h3>Tu matchup</h3></div>
-            <button>9 CAT <ChevronDown size={14}/></button>
+            <button>8 CAT <ChevronDown size={14}/></button>
           </div>
           <div className="matchup-teams">
             <div className="matchup-team"><div className="team-avatar orange">JD</div><div><strong>Baseline Club</strong><span>8—4 · #2</span></div></div>
-            <div className="score-prediction"><small>PROYECTADO</small><strong>6 <em>—</em> 3</strong></div>
+            <div className="score-prediction"><small>PROYECTADO</small><strong>5 <em>—</em> 3</strong></div>
             <div className="matchup-team opponent"><div><strong>Santurce Ballers</strong><span>7—5 · #4</span></div><div className="team-avatar black">SB</div></div>
           </div>
           <div className="category-list">
             {[
-              ['PTS',724,689,64],['REB',286,312,48],['AST',198,174,61],['STL',43,39,57],['BLK',31,36,46],['3PM',82,71,63],['FG%',49.2,47.8,59],['FT%',81.4,83.1,46],['TO',89,104,60],
+              ['PTS',724,689,64],['FT%',81.4,83.1,46],['3PTM',82,71,63],['FG%',49.2,47.8,59],['AST',198,174,61],['REB',286,312,48],['STL',43,39,57],['BLK',31,36,46],
             ].map(([label,a,b,width])=><div className="category-row" key={label}>
-              <b className={a>b || label==='TO'&&a<b?'winner':''}>{a}{String(label).includes('%')?'%':''}</b>
+              <b className={a>b?'winner':''}>{a}{String(label).includes('%')?'%':''}</b>
               <div><span>{label}</span><div className="duel-bar"><i style={{width:`${width}%`}}/><em/></div></div>
-              <b className={b>a || label==='TO'&&b<a?'winner':''}>{b}{String(label).includes('%')?'%':''}</b>
+              <b className={b>a?'winner':''}>{b}{String(label).includes('%')?'%':''}</b>
             </div>)}
           </div>
           <button className="full-text-button" onClick={() => setPage('team')}>Ver matchup completo <ArrowRight size={15}/></button>
@@ -236,19 +232,19 @@ function PlayersPage({ players, openPlayer, watchlist, toggleWatchlist }) {
     .sort((a,b) => Number(b[sort]||0)-Number(a[sort]||0)), [players, query, position, sort])
   return (
     <div className="page players-page">
-      <SectionHeading eyebrow="PLAYER INDEX" title="Conoce el valor real." description="Estadísticas de temporada, valor fantasy y tendencias de toda la NBA." />
+      <SectionHeading eyebrow="PLAYER INDEX · H2H 8-CAT" title="Conoce el valor real." description="Ranking especializado en PTS, FT%, 3PTM, FG%, AST, REB, STL y BLK." />
       <div className="filter-bar">
         <label className="search-input"><Search size={18}/><input placeholder="Buscar por jugador o equipo" value={query} onChange={e=>{setQuery(e.target.value);setLimit(25)}}/>{query&&<button onClick={()=>setQuery('')}><X size={15}/></button>}</label>
         <div className="position-pills">{positions.map(item=><button className={position===item?'active':''} onClick={()=>setPosition(item)} key={item}>{item}</button>)}</div>
         <button className="filter-button"><SlidersHorizontal size={17}/> Filtros <span>2</span></button>
       </div>
-      <div className="table-meta"><span>Mostrando <b>{Math.min(limit,filtered.length)}</b> de <b>{filtered.length}</b> jugadores</span><div>Ordenar por <select value={sort} onChange={e=>setSort(e.target.value)}><option value="value">Fantasy Value</option><option value="pts">Puntos</option><option value="reb">Rebotes</option><option value="ast">Asistencias</option><option value="stl">Robos</option><option value="blk">Tapones</option></select></div></div>
+      <div className="table-meta"><span>Mostrando <b>{Math.min(limit,filtered.length)}</b> de <b>{filtered.length}</b> jugadores</span><div>Ordenar por <select value={sort} onChange={e=>setSort(e.target.value)}><option value="value">Fantasy Value 8-CAT</option><option value="pts">PTS</option><option value="ftPct">FT%</option><option value="threeMade">3PTM</option><option value="fgPct">FG%</option><option value="ast">AST</option><option value="reb">REB</option><option value="stl">STL</option><option value="blk">BLK</option></select></div></div>
       <div className="surface players-table-wrap">
         <table className="players-table">
-          <thead><tr><th>#</th><th>JUGADOR</th><th>GP</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>FG%</th><th>FT%</th><th>VALOR</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>JUGADOR</th><th>GP</th><th>PTS</th><th>FT%</th><th>3PTM</th><th>FG%</th><th>AST</th><th>REB</th><th>STL</th><th>BLK</th><th>VALOR</th><th></th></tr></thead>
           <tbody>{filtered.slice(0,limit).map((player,index)=><tr key={player.id} onClick={()=>openPlayer(player)}>
             <td>{index+1}</td><td><div className="table-player"><PlayerPhoto player={player}/><div><strong>{player.name}</strong><span>{player.team} · {player.position}</span></div></div></td>
-            <td>{player.gp}</td><td>{fmt(player.min)}</td><td><b>{fmt(player.pts)}</b></td><td>{fmt(player.reb)}</td><td>{fmt(player.ast)}</td><td>{fmt(player.stl)}</td><td>{fmt(player.blk)}</td><td>{fmt(player.fgPct)}%</td><td>{fmt(player.ftPct)}%</td>
+            <td>{player.gp}</td><td><b>{fmt(player.pts)}</b></td><td>{fmt(player.ftPct)}%</td><td>{fmt(player.threeMade)}</td><td>{fmt(player.fgPct)}%</td><td>{fmt(player.ast)}</td><td>{fmt(player.reb)}</td><td>{fmt(player.stl)}</td><td>{fmt(player.blk)}</td>
             <td><div className={`value-chip ${player.value>89?'elite':player.value>74?'strong':''}`}>{player.value}</div></td>
             <td><button className={`star-button ${watchlist.includes(player.id)?'saved':''}`} onClick={e=>{e.stopPropagation();toggleWatchlist(player.id)}}><Star size={17} fill={watchlist.includes(player.id)?'currentColor':'none'}/></button></td>
           </tr>)}</tbody>
@@ -264,14 +260,14 @@ function TeamPage({ roster, openPlayer, onImport }) {
   return (
     <div className="page team-page">
       <div className="team-hero">
-        <div><span className="eyebrow">MI EQUIPO · ESPN</span><h1>Baseline Club</h1><p>San Juan H2H · 9 categorías · 12 equipos</p></div>
+        <div><span className="eyebrow">MI EQUIPO · ESPN</span><h1>Baseline Club</h1><p>San Juan H2H · 8 categorías · 12 equipos</p></div>
         <div className="team-record"><span>RÉCORD</span><strong>8—4</strong><small>2do lugar</small></div>
         <div className="team-record"><span>VALOR</span><strong>{totalValue}</strong><small>Top 11% liga</small></div>
         <button className="outline-button light" onClick={onImport}><RefreshCcw size={16}/> Sincronizar ESPN</button>
       </div>
       <section className="team-insights">
         <div className="surface strength-card"><span>PERFIL DEL EQUIPO</span><h3>Fortalezas y debilidades</h3>
-          {[['PTS',88,'strong'],['AST',84,'strong'],['3PM',79,'strong'],['STL',68,''],['FT%',61,''],['REB',48,''],['BLK',37,'weak'],['FG%',34,'weak']].map(([name,value,type])=><div className="strength-row" key={name}><b>{name}</b><div><i className={type} style={{width:`${value}%`}}/></div><span>{value}</span></div>)}
+          {[['PTS',88,'strong'],['FT%',61,''],['3PTM',79,'strong'],['FG%',34,'weak'],['AST',84,'strong'],['REB',48,''],['STL',68,''],['BLK',37,'weak']].map(([name,value,type])=><div className="strength-row" key={name}><b>{name}</b><div><i className={type} style={{width:`${value}%`}}/></div><span>{value}</span></div>)}
         </div>
         <div className="surface recommendation-card"><div className="insight-icon"><Sparkles size={21}/></div><span>BASELINE INSIGHT</span><h3>Necesitas presencia interior.</h3><p>Tu roster está en el percentil 34 de FG% y 37 de tapones. Un interior eficiente puede convertir dos categorías perdidas.</p><button>Ver objetivos de trade <ArrowRight size={15}/></button></div>
       </section>
@@ -308,15 +304,15 @@ function TradePage({ players }) {
   const a=players.find(p=>p.id===left)||players[0], b=players.find(p=>p.id===right)||players[1]
   const difference=(b?.value||0)-(a?.value||0)
   const fairness=Math.max(55,100-Math.abs(difference)*3)
-  const impacts=CATEGORY_META.map(([key,label])=>({label,diff:Number((Number(b?.[key]||0)-Number(a?.[key]||0)).toFixed(1)), lower:key==='tov'}))
-  const winsBefore=5, winsAfter=Math.max(2,Math.min(8,winsBefore+impacts.filter(x=>x.lower?x.diff<0:x.diff>0).length-4))
+  const impacts=CATEGORY_META.map(([key,label])=>({label,diff:Number((Number(b?.[key]||0)-Number(a?.[key]||0)).toFixed(1))}))
+  const winsBefore=5, winsAfter=Math.max(2,Math.min(8,winsBefore+impacts.filter(x=>x.diff>0).length-4))
   return <div className="page trade-page">
     <SectionHeading eyebrow="TRADE LAB · BETA" title="Ve el trade antes de hacerlo." description="Compara valor, necesidades y el efecto real en tu temporada." action={<button className="outline-button"><RefreshCcw size={15}/> Reiniciar</button>}/>
     <section className="trade-builder surface">
       <div className="trade-side"><div className="trade-side-heading"><div className="team-avatar orange">TU</div><div><span>RECIBE</span><strong>Baseline Club</strong></div></div><PlayerPicker label="JUGADOR" selected={right} setSelected={setRight} players={players} exclude={left}/><button className="add-piece"><Plus size={16}/> Añadir jugador o pick</button></div>
       <div className="trade-center"><button onClick={()=>{setLeft(right);setRight(left)}}><ArrowLeftRight size={22}/></button><span>TRADE</span></div>
       <div className="trade-side"><div className="trade-side-heading"><div className="team-avatar black">RIV</div><div><span>RECIBE</span><strong>Rival</strong></div></div><PlayerPicker label="JUGADOR" selected={left} setSelected={setLeft} players={players} exclude={right}/><button className="add-piece"><Plus size={16}/> Añadir jugador o pick</button></div>
-      <div className="analyze-row"><button className="primary" onClick={()=>setAnalyzed(true)}><Sparkles size={17}/> Analizar este trade</button><p>Basado en ROS, necesidades del roster y 9 categorías</p></div>
+      <div className="analyze-row"><button className="primary" onClick={()=>setAnalyzed(true)}><Sparkles size={17}/> Analizar este trade</button><p>Basado en ROS, necesidades del roster y H2H 8-CAT</p></div>
     </section>
     <section className={`trade-results ${analyzed?'revealed':''}`}>
       <div className="surface verdict-card">
@@ -324,7 +320,7 @@ function TradePage({ players }) {
         <div className="fairness"><div><span>Equidad del trade</span><b>{fairness}%</b></div><div className="fairness-bar"><i style={{width:`${fairness}%`}}/><em/></div><small>La zona óptima para ambos equipos es 85–100%</small></div>
         <div className="value-exchange"><div><PlayerPhoto player={b}/><div><span>RECIBES</span><strong>{b?.name}</strong></div><b>{b?.value}</b></div><ArrowRight size={22}/><div><PlayerPhoto player={a}/><div><span>ENTREGAS</span><strong>{a?.name}</strong></div><b>{a?.value}</b></div></div>
       </div>
-      <div className="surface impact-card"><div className="card-title-row"><div><span>IMPACTO 9-CAT</span><h3>Cambio por categoría</h3></div><Info size={17}/></div><div className="impact-list">{impacts.map(item=>{const good=item.lower?item.diff<0:item.diff>0;return <div key={item.label}><b>{item.label}</b><div className="impact-axis"><i className={!good?'negative':''} style={{width:`${Math.min(50,Math.abs(item.diff)*3+6)}%`,left:good?'50%':`${50-Math.min(50,Math.abs(item.diff)*3+6)}%`}}/></div><span className={good?'positive':'negative'}>{item.diff>0?'+':''}{item.diff}</span></div>})}</div></div>
+      <div className="surface impact-card"><div className="card-title-row"><div><span>IMPACTO H2H 8-CAT</span><h3>Cambio por categoría</h3></div><Info size={17}/></div><div className="impact-list">{impacts.map(item=>{const good=item.diff>0;return <div key={item.label}><b>{item.label}</b><div className="impact-axis"><i className={!good?'negative':''} style={{width:`${Math.min(50,Math.abs(item.diff)*3+6)}%`,left:good?'50%':`${50-Math.min(50,Math.abs(item.diff)*3+6)}%`}}/></div><span className={good?'positive':'negative'}>{item.diff>0?'+':''}{item.diff}</span></div>})}</div></div>
       <div className="surface scenario-card"><div className="card-title-row"><div><span>SIMULADOR DE ESCENARIO</span><h3>Si el trade ya hubiera ocurrido</h3></div><span className="pill">TEMPORADA COMPLETA</span></div><div className="record-comparison"><div><span>RÉCORD ACTUAL</span><strong>8—4</strong><small>66.7% victorias</small></div><ArrowRight size={24}/><div className="projected"><span>RÉCORD PROYECTADO</span><strong>{8+(winsAfter-winsBefore)}—{4-(winsAfter-winsBefore)}</strong><small><ArrowUpRight size={13}/> +{Math.max(1,(winsAfter-winsBefore)*3.2).toFixed(1)}% probabilidad</small></div></div><div className="week-chart"><div className="chart-labels"><span>W1</span><span>W4</span><span>W8</span><span>W12</span><span>W16</span><span>HOY</span></div><svg viewBox="0 0 620 130" preserveAspectRatio="none"><defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ff5a1f" stopOpacity=".24"/><stop offset="1" stopColor="#ff5a1f" stopOpacity="0"/></linearGradient></defs><path className="area" d="M0,112 C60,105 70,90 125,92 S190,68 250,73 S320,48 380,55 S450,29 505,38 S575,15 620,20 L620,130 L0,130Z"/><path d="M0,112 C60,105 70,90 125,92 S190,68 250,73 S320,48 380,55 S450,29 505,38 S575,15 620,20"/><path className="baseline" d="M0,112 C80,100 110,98 160,102 S250,82 310,85 S420,67 485,73 S560,60 620,58"/></svg><div className="legend"><span><i/> Con trade</span><span><i/> Actual</span></div></div></div>
     </section>
   </div>

@@ -1,6 +1,6 @@
 # Baseline — NBA Fantasy Analyzer
 
-Dashboard de NBA Fantasy en React con una dirección visual minimalista, datos reales de ESPN y herramientas interactivas para roster, trades y draft.
+Dashboard especializado en NBA Fantasy H2H 8-CAT (PTS, FT%, 3PTM, FG%, AST, REB, STL y BLK), con una dirección visual minimalista, datos reales de ESPN y herramientas interactivas para roster, trades y draft.
 
 ## Ejecutar
 
@@ -30,7 +30,7 @@ Para otra temporada, ejecuta directamente `node scripts/fetch-players.mjs AÑO_E
 - Dashboard con récord, proyección semanal, matchup y oportunidades de mercado.
 - Mi equipo con roster importable desde ligas públicas de ESPN.
 - Directorio NBA con búsqueda, filtros, ordenamiento y perfiles detallados.
-- Trade Lab con valor, equidad, impacto 9-CAT y escenario de récord.
+- Trade Lab con valor, equidad, impacto H2H 8-CAT y escenario de récord.
 - Draft Room con board dinámico para cuatro estrategias de construcción.
 
 La importación directa de ESPN usa el proxy de desarrollo de Vite. Una integración desplegada para ligas privadas requiere un pequeño backend con autorización de ESPN.
