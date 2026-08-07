@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './styles.css'
 import './h2h.css'
+import './violet.css'
+import './functional.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

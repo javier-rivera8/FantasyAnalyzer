@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Activity, ArrowDownRight, ArrowLeftRight, ArrowRight, ArrowUpRight, Bell, Check,
-  ChevronDown, ChevronLeft, ChevronRight, CircleUserRound, Crown, Gauge, Info,
-  LayoutDashboard, Menu, MoreHorizontal, Plus, RefreshCcw, Search, SlidersHorizontal,
-  Sparkles, Star, Target, Trophy, Upload, Users, X, Zap,
+  Activity, ArrowLeftRight, ArrowRight, ArrowUpRight, Bell, Check, ChevronDown,
+  ChevronLeft, ChevronRight, Crown, Gauge, Info, LayoutDashboard, MoreHorizontal,
+  Plus, RefreshCcw, Search, SlidersHorizontal, Sparkles, Star, Target, Trophy,
+  Upload, UserRound, Users, X, Zap,
 } from 'lucide-react'
-import { fallbackPlayers } from './data/fallbackPlayers'
 
 const NAV = [
   { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard },
   { id: 'team', label: 'Mi equipo', icon: Users },
   { id: 'players', label: 'Jugadores', icon: Search },
-  { id: 'trade', label: 'Trade Lab', icon: ArrowLeftRight, badge: 'BETA' },
+  { id: 'trade', label: 'Trade Lab', icon: ArrowLeftRight, badge: '8 CAT' },
   { id: 'draft', label: 'Draft Room', icon: Trophy },
 ]
 
@@ -21,415 +20,262 @@ const CATEGORY_META = [
 ]
 
 const STRATEGIES = [
-  { id: 'balanced', name: 'Balance total', kicker: 'Recomendado', copy: 'Valor sólido en las 8 categorías sin debilidades estructurales.', icon: Target },
-  { id: 'punt-ft', name: 'Punt FT%', kicker: 'Big men', copy: 'Prioriza rebotes, tapones, FG% y volumen interior.', icon: Gauge },
-  { id: 'small-ball', name: 'Small ball', kicker: 'Guard-heavy', copy: 'Maximiza triples, asistencias, robos y tiros libres.', icon: Zap },
-  { id: 'punt-ast', name: 'Punt AST', kicker: 'Eficiencia', copy: 'Reduce el costo de bases élite y domina porcentajes, rebotes y tapones.', icon: Activity },
+  { id: 'balanced', name: 'Balance total', kicker: 'Recomendado', copy: 'Valor sólido en las ocho categorías.', icon: Target },
+  { id: 'punt-ft', name: 'Punt FT%', kicker: 'Big men', copy: 'Prioriza REB, BLK, FG% y volumen interior.', icon: Gauge },
+  { id: 'small-ball', name: 'Small ball', kicker: 'Guard-heavy', copy: 'Maximiza 3PTM, AST, STL y FT%.', icon: Zap },
+  { id: 'punt-ast', name: 'Punt AST', kicker: 'Eficiencia', copy: 'Prioriza porcentajes, REB y BLK.', icon: Activity },
 ]
 
 const TEAM_COLORS = {
-  ATL:'#e03a3e', BOS:'#007a33', BKN:'#111', CHA:'#1d1160', CHI:'#ce1141', CLE:'#6f263d', DAL:'#00538c', DEN:'#0e2240',
-  DET:'#c8102e', GS:'#1d428a', HOU:'#ce1141', IND:'#002d62', LAC:'#c8102e', LAL:'#552583', MEM:'#5d76a9', MIA:'#98002e',
-  MIL:'#00471b', MIN:'#0c2340', NO:'#0c2340', NY:'#f58426', OKC:'#007ac1', ORL:'#0077c0', PHI:'#006bb6', PHX:'#1d1160',
-  POR:'#e03a3e', SAC:'#5a2d81', SA:'#8a8d8f', TOR:'#ce1141', UTAH:'#002b5c', WSH:'#002b5c', FA:'#777',
-}
-
-function usePlayerData() {
-  const [data, setData] = useState({ players: fallbackPlayers, season: '2025-26', count: fallbackPlayers.length, source: 'Vista local' })
-  const [loading, setLoading] = useState(true)
-  useEffect(() => {
-    fetch('/data/players.json')
-      .then((response) => response.ok ? response.json() : Promise.reject())
-      .then((payload) => setData(payload))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
-  return { ...data, loading }
+  ATL:'#e03a3e', BOS:'#007a33', BKN:'#111', CHA:'#1d1160', CHI:'#ce1141', CLE:'#6f263d', DAL:'#00538c', DEN:'#0e2240', DET:'#c8102e',
+  GS:'#1d428a', HOU:'#ce1141', IND:'#002d62', LAC:'#c8102e', LAL:'#552583', MEM:'#5d76a9', MIA:'#98002e', MIL:'#00471b', MIN:'#0c2340',
+  NO:'#0c2340', NY:'#f58426', OKC:'#007ac1', ORL:'#0077c0', PHI:'#006bb6', PHX:'#1d1160', POR:'#e03a3e', SAC:'#5a2d81', SA:'#8a8d8f',
+  TOR:'#ce1141', UTAH:'#002b5c', WSH:'#002b5c', FA:'#777',
 }
 
 const fmt = (value, digits = 1) => Number(value || 0).toFixed(digits)
-const initials = (name = '') => name.split(' ').map((part) => part[0]).slice(0, 2).join('')
+const initials = (name = '') => name.split(' ').filter(Boolean).map((part) => part[0]).slice(0, 2).join('').toUpperCase()
+const unique = (values) => [...new Set(values.filter(Boolean).map(String))]
+const teamName = (team) => team?.name || [team?.location, team?.nickname].filter(Boolean).join(' ') || team?.abbrev || `Equipo ${team?.id || ''}`
+
+function useStoredState(key, initialValue) {
+  const [value, setValue] = useState(() => {
+    try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : initialValue } catch { return initialValue }
+  })
+  useEffect(() => { localStorage.setItem(key, JSON.stringify(value)) }, [key, value])
+  return [value, setValue]
+}
+
+function usePlayerData() {
+  const [data, setData] = useState({ players: [], season: '', count: 0, source: '' })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  useEffect(() => {
+    fetch('/data/players.json')
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((payload) => { setData(payload); setError(false) })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false))
+  }, [])
+  return { ...data, loading, error }
+}
+
+function projectRoster(roster) {
+  if (!roster.length) return null
+  const result = {}
+  CATEGORY_META.forEach(([key]) => {
+    if (key === 'fgPct' || key === 'ftPct') {
+      const weighted = roster.reduce((sum, player) => sum + Number(player[key] || 0) * Math.max(1, Number(player.min || 1)), 0)
+      const weight = roster.reduce((sum, player) => sum + Math.max(1, Number(player.min || 1)), 0)
+      result[key] = weighted / weight
+    } else result[key] = roster.reduce((sum, player) => sum + Number(player[key] || 0), 0)
+  })
+  return result
+}
+
+function compareRosters(roster, opponent) {
+  const mine = projectRoster(roster)
+  const theirs = projectRoster(opponent)
+  if (!mine || !theirs) return null
+  const categories = CATEGORY_META.map(([key, label]) => ({ key, label, mine: mine[key], theirs: theirs[key], win: mine[key] > theirs[key] }))
+  return { categories, wins: categories.filter((cat) => cat.win).length, losses: categories.filter((cat) => !cat.win).length }
+}
+
+function rosterStrengths(roster, players) {
+  if (!roster.length || !players.length) return []
+  const rosterProjection = projectRoster(roster)
+  const pool = players.filter((player) => player.gp >= 10)
+  return CATEGORY_META.map(([key, label]) => {
+    const teamAverage = key === 'fgPct' || key === 'ftPct' ? rosterProjection[key] : rosterProjection[key] / roster.length
+    const percentile = Math.round((pool.filter((player) => Number(player[key] || 0) <= teamAverage).length / Math.max(1, pool.length)) * 100)
+    return { key, label, value: Math.min(99, Math.max(1, percentile)), type: percentile >= 67 ? 'strong' : percentile <= 33 ? 'weak' : '' }
+  })
+}
+
+function timeAgo(iso) {
+  if (!iso) return 'Nunca'
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000))
+  if (minutes < 1) return 'Ahora mismo'
+  if (minutes < 60) return `Hace ${minutes} min`
+  const hours = Math.round(minutes / 60)
+  return hours < 24 ? `Hace ${hours} h` : `Hace ${Math.round(hours / 24)} d`
+}
 
 function PlayerPhoto({ player, size = 'md' }) {
   const [failed, setFailed] = useState(false)
-  return (
-    <div className={`player-photo ${size}`} style={{ '--team': TEAM_COLORS[player.team] || '#777' }}>
-      {!failed && player.headshot ? (
-        <img src={player.headshot} alt={player.name} onError={() => setFailed(true)} />
-      ) : <span>{initials(player.name)}</span>}
-    </div>
-  )
+  if (!player) return null
+  return <div className={`player-photo ${size}`} style={{ '--team': TEAM_COLORS[player.team] || '#777' }}>
+    {!failed && player.headshot ? <img src={player.headshot} alt={player.name} onError={() => setFailed(true)} /> : <span>{initials(player.name)}</span>}
+  </div>
 }
 
 function Logo({ compact = false }) {
-  return (
-    <div className="brand" aria-label="Baseline">
-      <div className="brand-mark"><span></span><span></span></div>
-      {!compact && <div><strong>BASELINE</strong><small>FANTASY INTELLIGENCE</small></div>}
-    </div>
-  )
+  return <div className="brand" aria-label="Baseline"><div className="brand-mark"><span/><span/></div>{!compact&&<div><strong>BASELINE</strong><small>FANTASY INTELLIGENCE</small></div>}</div>
 }
 
-function Sidebar({ page, setPage, collapsed, setCollapsed }) {
-  return (
-    <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
-      <div className="sidebar-top">
-        <Logo compact={collapsed} />
-        <button className="collapse-button" onClick={() => setCollapsed(!collapsed)} aria-label="Contraer menú">
-          <ChevronLeft size={17} />
-        </button>
-      </div>
-      <nav>
-        <span className="nav-eyebrow">ANÁLISIS</span>
-        {NAV.map(({ id, label, icon: Icon, badge }) => (
-          <button key={id} className={page === id ? 'active' : ''} onClick={() => setPage(id)} title={label}>
-            <Icon size={19} strokeWidth={2} />
-            <span>{label}</span>{badge && <em>{badge}</em>}
-          </button>
-        ))}
-      </nav>
-      <div className="user-mini">
-        <div className="avatar">JD</div>
-        {!collapsed && <div><strong>Javier Díaz</strong><span>League Manager</span></div>}
-        {!collapsed && <MoreHorizontal size={18} />}
-      </div>
-    </aside>
-  )
+function Sidebar({ page, setPage, collapsed, setCollapsed, user, onProfile }) {
+  return <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <div className="sidebar-top"><Logo compact={collapsed}/><button className="collapse-button" onClick={()=>setCollapsed(!collapsed)} aria-label="Contraer menú"><ChevronLeft size={17}/></button></div>
+    <nav><span className="nav-eyebrow">ANÁLISIS</span>{NAV.map(({id,label,icon:Icon,badge})=><button key={id} className={page===id?'active':''} onClick={()=>setPage(id)} title={label}><Icon size={19}/><span>{label}</span>{badge&&<em>{badge}</em>}</button>)}</nav>
+    <button className="user-mini" onClick={onProfile} title="Editar perfil"><div className="avatar">{initials(user.name)}</div>{!collapsed&&<div><strong>{user.name}</strong><span>League Manager</span></div>}{!collapsed&&<MoreHorizontal size={18}/>}</button>
+  </aside>
 }
 
-function Header({ title, count, onImport, onSearch }) {
-  return (
-    <header className="topbar">
-      <div className="mobile-logo"><Logo compact /></div>
-      <div className="topbar-title"><h2>{title}</h2>{count && <span>{count} jugadores</span>}</div>
-      <button className="global-search" onClick={onSearch}><Search size={18} /><span>Buscar jugador, equipo...</span><kbd>⌘ K</kbd></button>
-      <button className="icon-button notification"><Bell size={19} /><i /></button>
-      <button className="import-button" onClick={onImport}><Upload size={17} /> Importar ESPN</button>
-    </header>
-  )
+function Header({ title, count, onImport, onSearch, onNotifications, notificationCount }) {
+  return <header className="topbar">
+    <div className="mobile-logo"><Logo compact/></div><div className="topbar-title"><h2>{title}</h2>{count!=null&&<span>{count} jugadores</span>}</div>
+    <button className="global-search" onClick={onSearch}><Search size={18}/><span>Buscar jugador, equipo...</span></button>
+    <button className="icon-button notification" onClick={onNotifications} aria-label="Notificaciones"><Bell size={19}/>{notificationCount>0&&<i/>}</button>
+    <button className="import-button" onClick={onImport}><Upload size={17}/> Importar ESPN</button>
+  </header>
 }
 
 function SectionHeading({ eyebrow, title, description, action }) {
-  return (
-    <div className="section-heading">
-      <div><span>{eyebrow}</span><h2>{title}</h2>{description && <p>{description}</p>}</div>
-      {action}
-    </div>
-  )
+  return <div className="section-heading"><div><span>{eyebrow}</span><h2>{title}</h2>{description&&<p>{description}</p>}</div>{action}</div>
 }
 
-function Dashboard({ players, setPage, openPlayer, roster }) {
-  const leaders = players.slice(0, 5)
-  const opportunities = players.filter((p) => p.gp > 20 && p.value > 70).slice(7, 11)
-  return (
-    <div className="page dashboard-page">
-      <section className="hero">
-        <div className="hero-copy">
-          <span className="eyebrow"><i /> SEMANA 18 · EN VIVO</span>
-          <h1>Tu ventaja,<br/><em>cuantificada.</em></h1>
-          <p>Decisiones más inteligentes. Trades más justos.<br/>Una ruta clara hacia el campeonato.</p>
-          <div className="hero-actions">
-            <button className="primary" onClick={() => setPage('trade')}>Analizar un trade <ArrowRight size={17} /></button>
-            <button className="text-button" onClick={() => setPage('players')}>Explorar jugadores <ChevronRight size={16} /></button>
-          </div>
-        </div>
-        <div className="hero-visual">
-          <div className="rank-ring"><span>POWER RANK</span><strong>#2</strong><small>↑ 1 esta semana</small></div>
-          {leaders.slice(0,3).map((player, index) => (
-            <div className={`floating-player fp-${index + 1}`} key={player.id}>
-              <PlayerPhoto player={player} size="lg" />
-            </div>
-          ))}
-          <div className="hero-grid"></div>
-        </div>
-      </section>
-
-      <section className="metric-grid">
-        <div className="metric-card dark">
-          <div className="metric-head"><span>MI RÉCORD</span><span className="positive"><ArrowUpRight size={14}/> 12%</span></div>
-          <strong>8—4</strong><p>2do de 12 equipos</p>
-          <div className="record-dots">{Array.from({length:12},(_,i)=><i className={i<8?'win':'loss'} key={i}/>)}</div>
-        </div>
-        <div className="metric-card">
-          <div className="metric-head"><span>PROYECCIÓN SEMANAL</span><Activity size={18}/></div>
-          <strong>5—3</strong><p>vs. Santurce Ballers</p>
-          <div className="mini-progress"><span style={{width:'62.5%'}} /></div>
-          <small>62.5% probabilidad de ganar</small>
-        </div>
-        <div className="metric-card">
-          <div className="metric-head"><span>VALOR DEL EQUIPO</span><Crown size={18}/></div>
-          <strong>842</strong><p>Fantasy Value total</p>
-          <div className="comparison"><span>Promedio de liga</span><b>766</b></div>
-        </div>
-        <div className="metric-card accent">
-          <div className="metric-head"><span>OPORTUNIDADES</span><Zap size={18}/></div>
-          <strong>4</strong><p>Movimientos recomendados</p>
-          <button onClick={() => setPage('players')}>Ver recomendaciones <ArrowRight size={15}/></button>
-        </div>
-      </section>
-
-      <section className="dashboard-columns">
-        <div className="surface matchup-card">
-          <div className="card-title-row">
-            <div><span>PROYECCIÓN · SEMANA 18</span><h3>Tu matchup</h3></div>
-            <button>8 CAT <ChevronDown size={14}/></button>
-          </div>
-          <div className="matchup-teams">
-            <div className="matchup-team"><div className="team-avatar orange">JD</div><div><strong>Baseline Club</strong><span>8—4 · #2</span></div></div>
-            <div className="score-prediction"><small>PROYECTADO</small><strong>5 <em>—</em> 3</strong></div>
-            <div className="matchup-team opponent"><div><strong>Santurce Ballers</strong><span>7—5 · #4</span></div><div className="team-avatar black">SB</div></div>
-          </div>
-          <div className="category-list">
-            {[
-              ['PTS',724,689,64],['FT%',81.4,83.1,46],['3PTM',82,71,63],['FG%',49.2,47.8,59],['AST',198,174,61],['REB',286,312,48],['STL',43,39,57],['BLK',31,36,46],
-            ].map(([label,a,b,width])=><div className="category-row" key={label}>
-              <b className={a>b?'winner':''}>{a}{String(label).includes('%')?'%':''}</b>
-              <div><span>{label}</span><div className="duel-bar"><i style={{width:`${width}%`}}/><em/></div></div>
-              <b className={b>a?'winner':''}>{b}{String(label).includes('%')?'%':''}</b>
-            </div>)}
-          </div>
-          <button className="full-text-button" onClick={() => setPage('team')}>Ver matchup completo <ArrowRight size={15}/></button>
-        </div>
-
-        <div className="surface roster-snapshot">
-          <div className="card-title-row"><div><span>MI EQUIPO</span><h3>Núcleo del roster</h3></div><button onClick={() => setPage('team')}>Ver todos</button></div>
-          <div className="roster-list">
-            {roster.slice(0, 6).map((player,index)=><button className="roster-row" key={player.id} onClick={() => openPlayer(player)}>
-              <span className="rank">{String(index+1).padStart(2,'0')}</span><PlayerPhoto player={player}/>
-              <div className="player-name"><strong>{player.name}</strong><span>{player.team} · {player.position}</span></div>
-              <div className="player-form"><span>{index%3===1?'TREND':'VALUE'}</span><strong className={index%3===1?'down':''}>{index%3===1?'−2.4%':player.value}</strong></div>
-              <ChevronRight size={16}/>
-            </button>)}
-          </div>
-        </div>
-      </section>
-
-      <section className="surface market-section">
-        <SectionHeading eyebrow="MERCADO" title="Oportunidades que otros no ven." description="Jugadores con tendencia positiva y disponibilidad estimada." action={<button className="outline-button" onClick={()=>setPage('players')}>Ver todos <ArrowRight size={15}/></button>} />
-        <div className="opportunity-grid">
-          {opportunities.map((player,index)=><button className="opportunity-card" key={player.id} onClick={()=>openPlayer(player)}>
-            <div className="opp-top"><span className="availability">{68-index*7}% DISP.</span><span className="trend"><ArrowUpRight size={13}/> {8+index*3}%</span></div>
-            <PlayerPhoto player={player} size="xl" />
-            <h3>{player.name}</h3><p>{player.team} · {player.position}</p>
-            <div className="stat-triplet"><div><span>PTS</span><b>{fmt(player.pts)}</b></div><div><span>REB</span><b>{fmt(player.reb)}</b></div><div><span>AST</span><b>{fmt(player.ast)}</b></div></div>
-            <div className="add-player"><Plus size={16}/> Añadir a watchlist</div>
-          </button>)}
-        </div>
-      </section>
-    </div>
-  )
+function EmptyState({ icon: Icon = Upload, title, copy, action, actionLabel }) {
+  return <div className="empty-state"><div className="empty-state-icon"><Icon size={24}/></div><h3>{title}</h3><p>{copy}</p>{action&&<button className="primary" onClick={action}>{actionLabel}<ArrowRight size={15}/></button>}</div>
 }
 
-function PlayersPage({ players, openPlayer, watchlist, toggleWatchlist }) {
-  const [query, setQuery] = useState('')
-  const [position, setPosition] = useState('TODOS')
-  const [sort, setSort] = useState('value')
-  const [limit, setLimit] = useState(25)
-  const positions = ['TODOS','PG','SG','SF','PF','C','G','F']
-  const filtered = useMemo(() => players
-    .filter((player) => !query || `${player.name} ${player.team}`.toLowerCase().includes(query.toLowerCase()))
-    .filter((player) => position === 'TODOS' || player.position?.includes(position))
-    .sort((a,b) => Number(b[sort]||0)-Number(a[sort]||0)), [players, query, position, sort])
-  return (
-    <div className="page players-page">
-      <SectionHeading eyebrow="PLAYER INDEX · H2H 8-CAT" title="Conoce el valor real." description="Ranking especializado en PTS, FT%, 3PTM, FG%, AST, REB, STL y BLK." />
-      <div className="filter-bar">
-        <label className="search-input"><Search size={18}/><input placeholder="Buscar por jugador o equipo" value={query} onChange={e=>{setQuery(e.target.value);setLimit(25)}}/>{query&&<button onClick={()=>setQuery('')}><X size={15}/></button>}</label>
-        <div className="position-pills">{positions.map(item=><button className={position===item?'active':''} onClick={()=>setPosition(item)} key={item}>{item}</button>)}</div>
-        <button className="filter-button"><SlidersHorizontal size={17}/> Filtros <span>2</span></button>
+function Dashboard({ players, roster, opponentRoster, league, watchlist, setPage, openPlayer, toggleWatchlist, onImport, openWatchlist }) {
+  const leaders = useMemo(()=>[...players].sort((a,b)=>b.value-a.value).slice(0,8),[players])
+  const matchup = useMemo(()=>compareRosters(roster,opponentRoster),[roster,opponentRoster])
+  const opportunities = leaders.slice(4,8)
+  const teamValue = roster.reduce((sum,player)=>sum+Number(player.value||0),0)
+  const record = league?.record
+  const rankText = record?.rank ? `#${record.rank}` : String(players.length)
+  const signal = matchup ? `${Math.round(matchup.wins/8*100)}%` : '100%'
+  return <div className="page dashboard-page">
+    <section className="hero">
+      <div className="hero-aurora aurora-one"/><div className="hero-aurora aurora-two"/><div className="hero-noise"/>
+      <div className="hero-copy"><span className="eyebrow"><i/> H2H 8-CAT · DATOS ESPN</span><h1>Tu ventaja,<br/><em>cuantificada.</em></h1><p>{roster.length?'Tu roster, tus categorías y cada decisión conectados con datos reales.':'Conecta tu equipo o construye un roster para activar análisis personalizados.'}</p>
+        <div className="hero-badges"><span><b>{players.length}</b> jugadores reales</span><span><b>{roster.length}</b> en tu roster</span></div>
+        <div className="hero-actions">{roster.length?<button className="primary" onClick={()=>setPage('trade')}>Analizar un trade <ArrowRight size={17}/></button>:<button className="primary" onClick={onImport}>Importar mi equipo <Upload size={17}/></button>}<button className="text-button" onClick={()=>setPage('players')}>Explorar jugadores <ChevronRight size={16}/></button></div>
       </div>
-      <div className="table-meta"><span>Mostrando <b>{Math.min(limit,filtered.length)}</b> de <b>{filtered.length}</b> jugadores</span><div>Ordenar por <select value={sort} onChange={e=>setSort(e.target.value)}><option value="value">Fantasy Value 8-CAT</option><option value="pts">PTS</option><option value="ftPct">FT%</option><option value="threeMade">3PTM</option><option value="fgPct">FG%</option><option value="ast">AST</option><option value="reb">REB</option><option value="stl">STL</option><option value="blk">BLK</option></select></div></div>
-      <div className="surface players-table-wrap">
-        <table className="players-table">
-          <thead><tr><th>#</th><th>JUGADOR</th><th>GP</th><th>PTS</th><th>FT%</th><th>3PTM</th><th>FG%</th><th>AST</th><th>REB</th><th>STL</th><th>BLK</th><th>VALOR</th><th></th></tr></thead>
-          <tbody>{filtered.slice(0,limit).map((player,index)=><tr key={player.id} onClick={()=>openPlayer(player)}>
-            <td>{index+1}</td><td><div className="table-player"><PlayerPhoto player={player}/><div><strong>{player.name}</strong><span>{player.team} · {player.position}</span></div></div></td>
-            <td>{player.gp}</td><td><b>{fmt(player.pts)}</b></td><td>{fmt(player.ftPct)}%</td><td>{fmt(player.threeMade)}</td><td>{fmt(player.fgPct)}%</td><td>{fmt(player.ast)}</td><td>{fmt(player.reb)}</td><td>{fmt(player.stl)}</td><td>{fmt(player.blk)}</td>
-            <td><div className={`value-chip ${player.value>89?'elite':player.value>74?'strong':''}`}>{player.value}</div></td>
-            <td><button className={`star-button ${watchlist.includes(player.id)?'saved':''}`} onClick={e=>{e.stopPropagation();toggleWatchlist(player.id)}}><Star size={17} fill={watchlist.includes(player.id)?'currentColor':'none'}/></button></td>
-          </tr>)}</tbody>
-        </table>
-        {limit<filtered.length&&<button className="load-more" onClick={()=>setLimit(limit+25)}>Cargar 25 más <ChevronDown size={16}/></button>}
+      <div className="hero-visual"><div className="hero-monogram">8CAT</div><div className="motion-orbit orbit-one"/><div className="motion-orbit orbit-two"/><div className="rank-ring"><span>{record?.rank?'LEAGUE RANK':'PLAYER POOL'}</span><strong>{rankText}</strong><small>{league?.leagueName||'ESPN data'}</small></div>
+        {leaders.slice(0,3).map((player,index)=><div className={`floating-player fp-${index+1}`} key={player.id}><PlayerPhoto player={player} size="lg"/></div>)}
+        <div className="hero-signal"><div><Activity size={15}/><span>{matchup?'MATCHUP EDGE':'DATA STATUS'}</span></div><strong>{signal}</strong><i><em style={{width:signal}}/></i></div>
+        <div className="hero-category-float"><Sparkles size={14}/><span>{matchup?'VENTAJA':'TOP VALUE'}</span><b>{matchup?`+${Math.max(0,matchup.wins-matchup.losses)} CAT`:leaders[0]?.value||'—'}</b></div><div className="hero-grid"/>
       </div>
-    </div>
-  )
-}
-
-function TeamPage({ roster, openPlayer, onImport }) {
-  const totalValue = roster.reduce((sum,p)=>sum+p.value,0)
-  return (
-    <div className="page team-page">
-      <div className="team-hero">
-        <div><span className="eyebrow">MI EQUIPO · ESPN</span><h1>Baseline Club</h1><p>San Juan H2H · 8 categorías · 12 equipos</p></div>
-        <div className="team-record"><span>RÉCORD</span><strong>8—4</strong><small>2do lugar</small></div>
-        <div className="team-record"><span>VALOR</span><strong>{totalValue}</strong><small>Top 11% liga</small></div>
-        <button className="outline-button light" onClick={onImport}><RefreshCcw size={16}/> Sincronizar ESPN</button>
+    </section>
+    <section className="category-marquee"><div className="marquee-label"><span>FORMATO</span><strong>H2H 8-CAT</strong></div><div className="marquee-categories">{CATEGORY_META.map(([,label],index)=><span key={label}><i>{String(index+1).padStart(2,'0')}</i>{label}</span>)}</div><div className="marquee-live"><i/> ESPN DATA</div></section>
+    <section className="metric-grid">
+      <div className="metric-card dark"><div className="metric-head"><span>MI RÉCORD</span><Crown size={18}/></div><strong>{record?`${record.wins}—${record.losses}`:'—'}</strong><p>{record?`${record.rank?`#${record.rank} · `:''}${league.leagueName}`:'Importa una liga para ver tu récord'}</p><div className="record-dots">{record&&Array.from({length:record.wins+record.losses},(_,i)=><i className={i<record.wins?'win':'loss'} key={i}/>)}</div></div>
+      <div className="metric-card"><div className="metric-head"><span>MATCHUP</span><Activity size={18}/></div><strong>{matchup?`${matchup.wins}—${matchup.losses}`:'—'}</strong><p>{league?.opponent?.name?`vs. ${league.opponent.name}`:'Sin rival sincronizado'}</p><div className="mini-progress"><span style={{width:matchup?`${matchup.wins/8*100}%`:'0%'}}/></div><small>{matchup?'Proyección calculada con estadísticas reales':'Importa el matchup desde ESPN'}</small></div>
+      <div className="metric-card"><div className="metric-head"><span>VALOR DEL EQUIPO</span><Crown size={18}/></div><strong>{teamValue||'—'}</strong><p>{roster.length?`${roster.length} jugadores · valor 8-CAT`:'Roster vacío'}</p><div className="comparison"><span>Temporada</span><b>{league?.seasonLabel||'—'}</b></div></div>
+      <div className="metric-card accent"><div className="metric-head"><span>WATCHLIST</span><Star size={18}/></div><strong>{watchlist.length}</strong><p>Jugadores guardados</p><button onClick={openWatchlist}>Abrir watchlist <ArrowRight size={15}/></button></div>
+    </section>
+    <section className="dashboard-columns">
+      <div className="surface matchup-card"><div className="card-title-row"><div><span>{league?.scoringPeriodId?`PERIODO ${league.scoringPeriodId}`:'MATCHUP ESPN'}</span><h3>Tu matchup</h3></div><span className="static-pill">8 CAT</span></div>
+        {!matchup?<EmptyState icon={Activity} title="No hay matchup conectado" copy="Importa tu liga pública de ESPN para comparar ambos rosters." action={onImport} actionLabel="Importar ESPN"/>:<><div className="matchup-teams"><div className="matchup-team"><div className="team-avatar orange">{initials(league.teamName)}</div><div><strong>{league.teamName}</strong><span>{record?`${record.wins}—${record.losses}`:'Sin récord'}</span></div></div><div className="score-prediction"><small>PROYECTADO</small><strong>{matchup.wins} <em>—</em> {matchup.losses}</strong></div><div className="matchup-team opponent"><div><strong>{league.opponent.name}</strong><span>{league.opponent.record?`${league.opponent.record.wins}—${league.opponent.record.losses}`:'Rival ESPN'}</span></div><div className="team-avatar black">{initials(league.opponent.name)}</div></div></div><div className="category-list">{matchup.categories.map(cat=><div className="category-row" key={cat.key}><b className={cat.win?'winner':''}>{fmt(cat.mine)}{cat.key.includes('Pct')?'%':''}</b><div><span>{cat.label}</span><div className="duel-bar"><i style={{width:`${cat.mine/(cat.mine+cat.theirs||1)*100}%`}}/><em/></div></div><b className={!cat.win?'winner':''}>{fmt(cat.theirs)}{cat.key.includes('Pct')?'%':''}</b></div>)}</div><button className="full-text-button" onClick={()=>setPage('team')}>Ver mi equipo <ArrowRight size={15}/></button></>}
       </div>
-      <section className="team-insights">
-        <div className="surface strength-card"><span>PERFIL DEL EQUIPO</span><h3>Fortalezas y debilidades</h3>
-          {[['PTS',88,'strong'],['FT%',61,''],['3PTM',79,'strong'],['FG%',34,'weak'],['AST',84,'strong'],['REB',48,''],['STL',68,''],['BLK',37,'weak']].map(([name,value,type])=><div className="strength-row" key={name}><b>{name}</b><div><i className={type} style={{width:`${value}%`}}/></div><span>{value}</span></div>)}
-        </div>
-        <div className="surface recommendation-card"><div className="insight-icon"><Sparkles size={21}/></div><span>BASELINE INSIGHT</span><h3>Necesitas presencia interior.</h3><p>Tu roster está en el percentil 34 de FG% y 37 de tapones. Un interior eficiente puede convertir dos categorías perdidas.</p><button>Ver objetivos de trade <ArrowRight size={15}/></button></div>
-      </section>
-      <section className="roster-section">
-        <div className="card-title-row"><div><span>ROSTER ACTIVO</span><h3>{roster.length} jugadores</h3></div><div className="last-sync"><i/> Sincronizado hace 4 min</div></div>
-        <div className="roster-grid">{roster.map((player,index)=><button className="team-player-card" onClick={()=>openPlayer(player)} key={player.id}>
-          <div className="slot">{['PG','SG','SF','PF','C','G','F','UTIL','UTIL','BE','BE','BE'][index]||'IR'}</div>
-          <PlayerPhoto player={player} size="xl"/><div className="team-card-copy"><span>{player.team} · {player.position}</span><h3>{player.name}</h3></div>
-          <div className="card-value"><span>VALUE</span><strong>{player.value}</strong></div>
-          <div className="stat-triplet"><div><span>PTS</span><b>{fmt(player.pts)}</b></div><div><span>REB</span><b>{fmt(player.reb)}</b></div><div><span>AST</span><b>{fmt(player.ast)}</b></div></div>
-          <div className="next-game"><span><i style={{background:TEAM_COLORS[player.team]}}/> {index%2?'vs':'@'} {['BOS','MIA','LAL','DEN'][index%4]}</span><b>{index%3? 'Hoy 7:30':'Mañana'}</b></div>
-        </button>)}</div>
-      </section>
-    </div>
-  )
-}
-
-function PlayerPicker({ label, selected, setSelected, players, exclude }) {
-  const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const current = players.find(p=>p.id===selected)
-  const matches = players.filter(p=>p.id!==exclude && (!query || p.name.toLowerCase().includes(query.toLowerCase()))).slice(0,8)
-  return <div className="player-picker"><span>{label}</span>
-    <button className="picker-selected" onClick={()=>setOpen(!open)}>{current?<><PlayerPhoto player={current}/><div><strong>{current.name}</strong><small>{current.team} · {current.position} · VAL {current.value}</small></div><ChevronDown size={16}/></>:<><Plus size={18}/> Seleccionar jugador</>}</button>
-    {open&&<div className="picker-menu"><label><Search size={15}/><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar jugador..."/></label>{matches.map(player=><button key={player.id} onClick={()=>{setSelected(player.id);setOpen(false);setQuery('')}}><PlayerPhoto player={player}/><div><strong>{player.name}</strong><span>{player.team} · {player.position}</span></div><b>{player.value}</b></button>)}</div>}
+      <div className="surface roster-snapshot"><div className="card-title-row"><div><span>MI EQUIPO</span><h3>Roster actual</h3></div><button onClick={()=>setPage('team')}>Ver todos</button></div>{!roster.length?<EmptyState icon={Users} title="Roster vacío" copy="Importa ESPN o añade jugadores desde el directorio." action={()=>setPage('players')} actionLabel="Buscar jugadores"/>:<div className="roster-list">{roster.slice(0,6).map((player,index)=><button className="roster-row" key={player.id} onClick={()=>openPlayer(player)}><span className="rank">{String(index+1).padStart(2,'0')}</span><PlayerPhoto player={player}/><div className="player-name"><strong>{player.name}</strong><span>{player.team} · {player.position}</span></div><div className="player-form"><span>8-CAT</span><strong>{player.value}</strong></div><ChevronRight size={16}/></button>)}</div>}</div>
+    </section>
+    <section className="surface market-section"><SectionHeading eyebrow="NBA PLAYER POOL" title="Valor real, sin estimados de disponibilidad." description="Jugadores destacados según el modelo H2H 8-CAT y estadísticas reales de ESPN." action={<button className="outline-button" onClick={()=>setPage('players')}>Ver todos <ArrowRight size={15}/></button>}/><div className="opportunity-grid">{opportunities.map((player)=><div className="opportunity-card" key={player.id}><button className="opportunity-main" onClick={()=>openPlayer(player)}><div className="opp-top"><span className="availability">VALUE {player.value}</span><span className="trend">{player.gp} GP</span></div><PlayerPhoto player={player} size="xl"/><h3>{player.name}</h3><p>{player.team} · {player.position}</p><div className="stat-triplet"><div><span>PTS</span><b>{fmt(player.pts)}</b></div><div><span>REB</span><b>{fmt(player.reb)}</b></div><div><span>AST</span><b>{fmt(player.ast)}</b></div></div></button><button className={`add-player ${watchlist.includes(player.id)?'saved':''}`} onClick={()=>toggleWatchlist(player.id)}><Star size={15} fill={watchlist.includes(player.id)?'currentColor':'none'}/>{watchlist.includes(player.id)?'Quitar de watchlist':'Añadir a watchlist'}</button></div>)}</div></section>
   </div>
 }
 
-function TradePage({ players }) {
-  const [left, setLeft] = useState(players[6]?.id || players[0]?.id)
-  const [right, setRight] = useState(players[4]?.id || players[1]?.id)
-  const [analyzed, setAnalyzed] = useState(false)
-  useEffect(()=>{if(!players.some(p=>p.id===left)) setLeft(players[6]?.id||players[0]?.id);if(!players.some(p=>p.id===right)) setRight(players[4]?.id||players[1]?.id)},[players])
-  const a=players.find(p=>p.id===left)||players[0], b=players.find(p=>p.id===right)||players[1]
-  const difference=(b?.value||0)-(a?.value||0)
-  const fairness=Math.max(55,100-Math.abs(difference)*3)
-  const impacts=CATEGORY_META.map(([key,label])=>({label,diff:Number((Number(b?.[key]||0)-Number(a?.[key]||0)).toFixed(1))}))
-  const winsBefore=5, winsAfter=Math.max(2,Math.min(8,winsBefore+impacts.filter(x=>x.diff>0).length-4))
-  return <div className="page trade-page">
-    <SectionHeading eyebrow="TRADE LAB · BETA" title="Ve el trade antes de hacerlo." description="Compara valor, necesidades y el efecto real en tu temporada." action={<button className="outline-button"><RefreshCcw size={15}/> Reiniciar</button>}/>
-    <section className="trade-builder surface">
-      <div className="trade-side"><div className="trade-side-heading"><div className="team-avatar orange">TU</div><div><span>RECIBE</span><strong>Baseline Club</strong></div></div><PlayerPicker label="JUGADOR" selected={right} setSelected={setRight} players={players} exclude={left}/><button className="add-piece"><Plus size={16}/> Añadir jugador o pick</button></div>
-      <div className="trade-center"><button onClick={()=>{setLeft(right);setRight(left)}}><ArrowLeftRight size={22}/></button><span>TRADE</span></div>
-      <div className="trade-side"><div className="trade-side-heading"><div className="team-avatar black">RIV</div><div><span>RECIBE</span><strong>Rival</strong></div></div><PlayerPicker label="JUGADOR" selected={left} setSelected={setLeft} players={players} exclude={right}/><button className="add-piece"><Plus size={16}/> Añadir jugador o pick</button></div>
-      <div className="analyze-row"><button className="primary" onClick={()=>setAnalyzed(true)}><Sparkles size={17}/> Analizar este trade</button><p>Basado en ROS, necesidades del roster y H2H 8-CAT</p></div>
-    </section>
-    <section className={`trade-results ${analyzed?'revealed':''}`}>
-      <div className="surface verdict-card">
-        <div className="verdict-top"><div><span>VEREDICTO BASELINE</span><h2>{difference>5?'Trade favorable':difference<-5?'Pide un poco más':'Trade equilibrado'}</h2><p>{difference>=0?`Ganas ${Math.abs(difference)} puntos de valor y mejoras la construcción de tu roster.`:`Cedes ${Math.abs(difference)} puntos de valor, pero puedes ganar categorías de necesidad.`}</p></div><div className="grade"><span>NOTA</span><strong>{difference>5?'A':difference>=-3?'B+':'C+'}</strong></div></div>
-        <div className="fairness"><div><span>Equidad del trade</span><b>{fairness}%</b></div><div className="fairness-bar"><i style={{width:`${fairness}%`}}/><em/></div><small>La zona óptima para ambos equipos es 85–100%</small></div>
-        <div className="value-exchange"><div><PlayerPhoto player={b}/><div><span>RECIBES</span><strong>{b?.name}</strong></div><b>{b?.value}</b></div><ArrowRight size={22}/><div><PlayerPhoto player={a}/><div><span>ENTREGAS</span><strong>{a?.name}</strong></div><b>{a?.value}</b></div></div>
-      </div>
-      <div className="surface impact-card"><div className="card-title-row"><div><span>IMPACTO H2H 8-CAT</span><h3>Cambio por categoría</h3></div><Info size={17}/></div><div className="impact-list">{impacts.map(item=>{const good=item.diff>0;return <div key={item.label}><b>{item.label}</b><div className="impact-axis"><i className={!good?'negative':''} style={{width:`${Math.min(50,Math.abs(item.diff)*3+6)}%`,left:good?'50%':`${50-Math.min(50,Math.abs(item.diff)*3+6)}%`}}/></div><span className={good?'positive':'negative'}>{item.diff>0?'+':''}{item.diff}</span></div>})}</div></div>
-      <div className="surface scenario-card"><div className="card-title-row"><div><span>SIMULADOR DE ESCENARIO</span><h3>Si el trade ya hubiera ocurrido</h3></div><span className="pill">TEMPORADA COMPLETA</span></div><div className="record-comparison"><div><span>RÉCORD ACTUAL</span><strong>8—4</strong><small>66.7% victorias</small></div><ArrowRight size={24}/><div className="projected"><span>RÉCORD PROYECTADO</span><strong>{8+(winsAfter-winsBefore)}—{4-(winsAfter-winsBefore)}</strong><small><ArrowUpRight size={13}/> +{Math.max(1,(winsAfter-winsBefore)*3.2).toFixed(1)}% probabilidad</small></div></div><div className="week-chart"><div className="chart-labels"><span>W1</span><span>W4</span><span>W8</span><span>W12</span><span>W16</span><span>HOY</span></div><svg viewBox="0 0 620 130" preserveAspectRatio="none"><defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ff5a1f" stopOpacity=".24"/><stop offset="1" stopColor="#ff5a1f" stopOpacity="0"/></linearGradient></defs><path className="area" d="M0,112 C60,105 70,90 125,92 S190,68 250,73 S320,48 380,55 S450,29 505,38 S575,15 620,20 L620,130 L0,130Z"/><path d="M0,112 C60,105 70,90 125,92 S190,68 250,73 S320,48 380,55 S450,29 505,38 S575,15 620,20"/><path className="baseline" d="M0,112 C80,100 110,98 160,102 S250,82 310,85 S420,67 485,73 S560,60 620,58"/></svg><div className="legend"><span><i/> Con trade</span><span><i/> Actual</span></div></div></div>
-    </section>
+function PlayersPage({ players, openPlayer, watchlist, toggleWatchlist, watchlistOnly, setWatchlistOnly }) {
+  const [query,setQuery]=useState(''); const [position,setPosition]=useState('TODOS'); const [sort,setSort]=useState('value'); const [limit,setLimit]=useState(25)
+  const [showFilters,setShowFilters]=useState(false); const [team,setTeam]=useState('TODOS'); const [minGp,setMinGp]=useState(0)
+  const teams=useMemo(()=>['TODOS',...unique(players.map(p=>p.team)).sort()],[players])
+  const activeFilters=(team!=='TODOS'?1:0)+(minGp>0?1:0)+(watchlistOnly?1:0)
+  const filtered=useMemo(()=>[...players].filter(p=>(!query||`${p.name} ${p.team}`.toLowerCase().includes(query.toLowerCase()))&&(position==='TODOS'||p.position?.includes(position))&&(team==='TODOS'||p.team===team)&&p.gp>=minGp&&(!watchlistOnly||watchlist.includes(p.id))).sort((a,b)=>Number(b[sort]||0)-Number(a[sort]||0)),[players,query,position,team,minGp,sort,watchlistOnly,watchlist])
+  return <div className="page players-page"><SectionHeading eyebrow="PLAYER INDEX · H2H 8-CAT" title="Conoce el valor real." description="Ranking real de ESPN en PTS, FT%, 3PTM, FG%, AST, REB, STL y BLK."/>
+    <div className="filter-bar"><label className="search-input"><Search size={18}/><input placeholder="Buscar por jugador o equipo" value={query} onChange={e=>{setQuery(e.target.value);setLimit(25)}}/>{query&&<button onClick={()=>setQuery('')} aria-label="Limpiar búsqueda"><X size={15}/></button>}</label><div className="position-pills">{['TODOS','PG','SG','SF','PF','C','G','F'].map(item=><button className={position===item?'active':''} onClick={()=>setPosition(item)} key={item}>{item}</button>)}</div><button className="filter-button" onClick={()=>setShowFilters(!showFilters)}><SlidersHorizontal size={17}/> Filtros {activeFilters>0&&<span>{activeFilters}</span>}</button></div>
+    {showFilters&&<div className="advanced-filters"><label>Equipo<select value={team} onChange={e=>setTeam(e.target.value)}>{teams.map(item=><option key={item}>{item}</option>)}</select></label><label>Partidos mínimos<input type="number" min="0" max="82" value={minGp} onChange={e=>setMinGp(Number(e.target.value)||0)}/></label><label className="saved-toggle"><input type="checkbox" checked={watchlistOnly} onChange={e=>setWatchlistOnly(e.target.checked)}/> Sólo watchlist</label><button onClick={()=>{setTeam('TODOS');setMinGp(0);setWatchlistOnly(false)}}>Limpiar filtros</button></div>}
+    <div className="table-meta"><span>Mostrando <b>{Math.min(limit,filtered.length)}</b> de <b>{filtered.length}</b></span><div>Ordenar por <select value={sort} onChange={e=>setSort(e.target.value)}><option value="value">Fantasy Value 8-CAT</option>{CATEGORY_META.map(([key,label])=><option value={key} key={key}>{label}</option>)}</select></div></div>
+    <div className="surface players-table-wrap">{!filtered.length?<EmptyState icon={Search} title="Sin resultados" copy="Ajusta los filtros o añade jugadores a tu watchlist."/>:<><table className="players-table"><thead><tr><th>#</th><th>JUGADOR</th><th>GP</th><th>PTS</th><th>FT%</th><th>3PTM</th><th>FG%</th><th>AST</th><th>REB</th><th>STL</th><th>BLK</th><th>VALOR</th><th/></tr></thead><tbody>{filtered.slice(0,limit).map((player,index)=><tr key={player.id} onClick={()=>openPlayer(player)}><td>{index+1}</td><td><div className="table-player"><PlayerPhoto player={player}/><div><strong>{player.name}</strong><span>{player.team} · {player.position}</span></div></div></td><td>{player.gp}</td><td><b>{fmt(player.pts)}</b></td><td>{fmt(player.ftPct)}%</td><td>{fmt(player.threeMade)}</td><td>{fmt(player.fgPct)}%</td><td>{fmt(player.ast)}</td><td>{fmt(player.reb)}</td><td>{fmt(player.stl)}</td><td>{fmt(player.blk)}</td><td><div className={`value-chip ${player.value>89?'elite':player.value>74?'strong':''}`}>{player.value}</div></td><td><button className={`star-button ${watchlist.includes(player.id)?'saved':''}`} onClick={e=>{e.stopPropagation();toggleWatchlist(player.id)}} aria-label="Cambiar watchlist"><Star size={17} fill={watchlist.includes(player.id)?'currentColor':'none'}/></button></td></tr>)}</tbody></table>{limit<filtered.length&&<button className="load-more" onClick={()=>setLimit(limit+25)}>Cargar 25 más <ChevronDown size={16}/></button>}</>}</div>
   </div>
 }
 
-function strategyScore(player, strategy) {
-  const base=player.value
-  if(strategy==='punt-ft') return base+player.reb*1.2+player.blk*4+player.fgPct*.12-player.ftPct*.05
-  if(strategy==='small-ball') return base+player.ast*1.4+player.stl*3+player.threeMade*3+player.ftPct*.08
-  if(strategy==='punt-ast') return base+player.reb*.8+player.blk*3+player.fgPct*.1-player.ast*.25-player.tov*.8
-  return base
+function TeamPage({ roster, players, league, openPlayer, onImport, setPage }) {
+  const strengths=useMemo(()=>rosterStrengths(roster,players),[roster,players]); const weakest=[...strengths].sort((a,b)=>a.value-b.value).slice(0,2); const total=roster.reduce((s,p)=>s+p.value,0)
+  if(!roster.length)return <div className="page team-page"><SectionHeading eyebrow="MI EQUIPO" title="Conecta tu roster." description="No mostramos un equipo ficticio: importa ESPN o añade jugadores reales manualmente."/><div className="surface large-empty"><EmptyState icon={Users} title="Todavía no hay jugadores" copy="Puedes importar una liga pública de ESPN o construir el roster desde Jugadores." action={onImport} actionLabel="Importar ESPN"/><button className="outline-button" onClick={()=>setPage('players')}>Construir manualmente <ArrowRight size={15}/></button></div></div>
+  return <div className="page team-page"><div className="team-hero"><div><span className="eyebrow">MI EQUIPO · {league?'ESPN':'MANUAL'}</span><h1>{league?.teamName||'Equipo de Javier'}</h1><p>{league?`${league.leagueName} · H2H 8-CAT · ${league.leagueSize} equipos`:'Roster H2H 8-CAT guardado localmente'}</p></div><div className="team-record"><span>RÉCORD</span><strong>{league?.record?`${league.record.wins}—${league.record.losses}`:'—'}</strong><small>{league?.record?.rank?`#${league.record.rank}`:'Sin datos ESPN'}</small></div><div className="team-record"><span>VALOR</span><strong>{total}</strong><small>{roster.length} jugadores</small></div><button className="outline-button light" onClick={onImport}><RefreshCcw size={16}/>{league?'Sincronizar':'Importar ESPN'}</button></div>
+    <section className="team-insights"><div className="surface strength-card"><span>PERFIL REAL DEL ROSTER</span><h3>Percentiles 8-CAT</h3>{strengths.map(item=><div className="strength-row" key={item.key}><b>{item.label}</b><div><i className={item.type} style={{width:`${item.value}%`}}/></div><span>{item.value}</span></div>)}</div><div className="surface recommendation-card"><div className="insight-icon"><Sparkles size={21}/></div><span>INSIGHT DEL ROSTER</span><h3>{weakest.length?`Refuerza ${weakest.map(x=>x.label).join(' y ')}.`:'Roster listo'}</h3><p>{weakest.length?`Estas son las categorías con menor percentil frente al pool NBA real. El Trade Lab priorizará su impacto.`:'Añade jugadores para calcular fortalezas.'}</p><button onClick={()=>setPage('trade')}>Buscar objetivos de trade <ArrowRight size={15}/></button></div></section>
+    <section className="roster-section"><div className="card-title-row"><div><span>ROSTER ACTUAL</span><h3>{roster.length} jugadores</h3></div><div className="last-sync"><i/>{league?timeAgo(league.syncedAt):'Guardado localmente'}</div></div><div className="roster-grid">{roster.map((player,index)=><button className="team-player-card" onClick={()=>openPlayer(player)} key={player.id}><div className="slot">{index<9?'ACTIVO':'BE'}</div><PlayerPhoto player={player} size="xl"/><div className="team-card-copy"><span>{player.team} · {player.position}</span><h3>{player.name}</h3></div><div className="card-value"><span>8-CAT</span><strong>{player.value}</strong></div><div className="stat-triplet"><div><span>PTS</span><b>{fmt(player.pts)}</b></div><div><span>REB</span><b>{fmt(player.reb)}</b></div><div><span>AST</span><b>{fmt(player.ast)}</b></div></div><div className="next-game"><span>{player.gp} GP</span><b>{fmt(player.min)} MIN</b></div></button>)}</div></section>
+  </div>
 }
+
+function PlayerPicker({ label, selected, setSelected, players, exclude = [], allowClear = false }) {
+  const [open,setOpen]=useState(false); const [query,setQuery]=useState(''); const current=players.find(p=>p.id===selected)
+  const matches=players.filter(p=>!exclude.includes(p.id)&&(!query||p.name.toLowerCase().includes(query.toLowerCase()))).slice(0,8)
+  return <div className="player-picker"><span>{label}</span><button className="picker-selected" onClick={()=>setOpen(!open)}>{current?<><PlayerPhoto player={current}/><div><strong>{current.name}</strong><small>{current.team} · {current.position} · VAL {current.value}</small></div><ChevronDown size={16}/></>:<><Plus size={18}/> Seleccionar jugador</>}</button>{open&&<div className="picker-menu"><label><Search size={15}/><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar jugador..."/></label>{allowClear&&current&&<button onClick={()=>{setSelected(null);setOpen(false)}}><X size={16}/><div><strong>Quitar jugador</strong><span>Eliminar esta pieza</span></div></button>}{matches.map(player=><button key={player.id} onClick={()=>{setSelected(player.id);setOpen(false);setQuery('')}}><PlayerPhoto player={player}/><div><strong>{player.name}</strong><span>{player.team} · {player.position}</span></div><b>{player.value}</b></button>)}</div>}</div>
+}
+
+function TradePage({ players, roster, league, seedPlayer, clearSeed }) {
+  const defaultSend=roster[0]?.id||players[1]?.id; const defaultReceive=players.find(p=>!roster.some(r=>r.id===p.id))?.id||players[0]?.id
+  const [send,setSend]=useState(defaultSend); const [receive,setReceive]=useState(defaultReceive); const [send2,setSend2]=useState(null); const [receive2,setReceive2]=useState(null); const [extraSend,setExtraSend]=useState(false); const [extraReceive,setExtraReceive]=useState(false); const [analyzed,setAnalyzed]=useState(false)
+  useEffect(()=>{if(seedPlayer){setReceive(seedPlayer);setAnalyzed(false);clearSeed()}},[seedPlayer,clearSeed])
+  useEffect(()=>{if(!players.some(p=>p.id===send))setSend(defaultSend);if(!players.some(p=>p.id===receive))setReceive(defaultReceive)},[players,defaultSend,defaultReceive,send,receive])
+  const sendPlayers=[send,send2].map(id=>players.find(p=>p.id===id)).filter(Boolean); const receivePlayers=[receive,receive2].map(id=>players.find(p=>p.id===id)).filter(Boolean)
+  const total=(list,key)=>list.reduce((sum,p)=>sum+Number(p[key]||0),0); const sendValue=total(sendPlayers,'value'); const receiveValue=total(receivePlayers,'value'); const difference=receiveValue-sendValue; const fairness=Math.max(0,Math.round(100-Math.abs(difference)/Math.max(1,sendValue,receiveValue)*100))
+  const impacts=CATEGORY_META.map(([key,label])=>({key,label,diff:Number((total(receivePlayers,key)-total(sendPlayers,key)).toFixed(1))})); const catWins=impacts.filter(x=>x.diff>0).length
+  const reset=()=>{setSend(defaultSend);setReceive(defaultReceive);setSend2(null);setReceive2(null);setExtraSend(false);setExtraReceive(false);setAnalyzed(false)}
+  return <div className="page trade-page"><SectionHeading eyebrow="TRADE LAB · H2H 8-CAT" title="Ve el trade antes de hacerlo." description="Todo el cálculo usa estadísticas reales del dataset ESPN." action={<button className="outline-button" onClick={reset}><RefreshCcw size={15}/> Reiniciar</button>}/><section className="trade-builder surface"><div className="trade-side"><div className="trade-side-heading"><div className="team-avatar orange">JR</div><div><span>RECIBES</span><strong>{league?.teamName||'Tu equipo'}</strong></div></div><PlayerPicker label="JUGADOR" selected={receive} setSelected={setReceive} players={players} exclude={[send,send2]}/>{extraReceive&&<PlayerPicker label="SEGUNDA PIEZA" selected={receive2} setSelected={setReceive2} players={players} exclude={[send,send2,receive]} allowClear/>}{!extraReceive&&<button className="add-piece" onClick={()=>setExtraReceive(true)}><Plus size={16}/> Añadir otro jugador</button>}</div><div className="trade-center"><button onClick={()=>{const a=send,b=send2;setSend(receive);setSend2(receive2);setReceive(a);setReceive2(b);setExtraSend(extraReceive);setExtraReceive(extraSend);setAnalyzed(false)}} aria-label="Intercambiar lados"><ArrowLeftRight size={22}/></button><span>TRADE</span></div><div className="trade-side"><div className="trade-side-heading"><div className="team-avatar black">RIV</div><div><span>ENTREGAS</span><strong>Otro equipo</strong></div></div><PlayerPicker label="JUGADOR" selected={send} setSelected={setSend} players={players} exclude={[receive,receive2]}/>{extraSend&&<PlayerPicker label="SEGUNDA PIEZA" selected={send2} setSelected={setSend2} players={players} exclude={[receive,receive2,send]} allowClear/>}{!extraSend&&<button className="add-piece" onClick={()=>setExtraSend(true)}><Plus size={16}/> Añadir otro jugador</button>}</div><div className="analyze-row"><button className="primary" onClick={()=>setAnalyzed(true)} disabled={!sendPlayers.length||!receivePlayers.length}><Sparkles size={17}/> Analizar este trade</button><p>Valor, ocho categorías e impacto en tu construcción</p></div></section>
+    {analyzed&&<section className="trade-results revealed"><div className="surface verdict-card"><div className="verdict-top"><div><span>VEREDICTO 8-CAT</span><h2>{difference>5?'Valor favorable':difference<-5?'Estás pagando de más':'Trade equilibrado'}</h2><p>{difference===0?'El valor total es idéntico.':`${difference>0?'Recibes':'Cedes'} ${Math.abs(difference)} puntos netos de valor 8-CAT.`}</p></div><div className="grade"><span>EQUIDAD</span><strong>{fairness}</strong></div></div><div className="fairness"><div><span>Equidad del intercambio</span><b>{fairness}%</b></div><div className="fairness-bar"><i style={{width:`${fairness}%`}}/><em/></div></div><div className="bundle-summary"><div><span>RECIBES</span>{receivePlayers.map(p=><strong key={p.id}>{p.name} · {p.value}</strong>)}</div><ArrowRight size={21}/><div><span>ENTREGAS</span>{sendPlayers.map(p=><strong key={p.id}>{p.name} · {p.value}</strong>)}</div></div></div><div className="surface impact-card"><div className="card-title-row"><div><span>IMPACTO REAL</span><h3>Cambio por categoría</h3></div><Info size={17}/></div><div className="impact-list">{impacts.map(item=><div key={item.key}><b>{item.label}</b><div className="impact-axis"><i className={item.diff<0?'negative':''} style={{width:`${Math.min(50,Math.abs(item.diff)*3+6)}%`,left:item.diff>=0?'50%':`${50-Math.min(50,Math.abs(item.diff)*3+6)}%`}}/></div><span className={item.diff>=0?'positive':'negative'}>{item.diff>0?'+':''}{item.diff}</span></div>)}</div></div><div className="surface scenario-card"><div className="card-title-row"><div><span>ESCENARIO CALCULADO</span><h3>Balance de categorías del trade</h3></div><span className="pill">H2H 8-CAT</span></div><div className="scenario-category-score"><div><span>CATEGORÍAS QUE MEJORAN</span><strong>{catWins}</strong></div><ArrowRight size={24}/><div><span>CATEGORÍAS QUE BAJAN</span><strong>{8-catWins}</strong></div>{league?.record&&<p>Tu récord ESPN actual es {league.record.wins}—{league.record.losses}; no se altera retrospectivamente con datos inventados.</p>}</div></div></section>}
+  </div>
+}
+
+function strategyScore(player,strategy){const base=player.value;if(strategy==='punt-ft')return base+player.reb*1.2+player.blk*4+player.fgPct*.12-player.ftPct*.05;if(strategy==='small-ball')return base+player.ast*1.4+player.stl*3+player.threeMade*3+player.ftPct*.08;if(strategy==='punt-ast')return base+player.reb*.8+player.blk*3+player.fgPct*.1-player.ast*.25;return base}
 
 function DraftPage({ players, openPlayer }) {
-  const [strategy,setStrategy]=useState('balanced')
-  const [round,setRound]=useState(3)
-  const [drafted,setDrafted]=useState([])
-  const available=useMemo(()=>players.filter(p=>!drafted.includes(p.id)).sort((a,b)=>strategyScore(b,strategy)-strategyScore(a,strategy)),[players,strategy,drafted])
-  return <div className="page draft-page">
-    <div className="draft-header"><div><span className="eyebrow">DRAFT ROOM</span><h1>Construye con intención.</h1><p>Recomendaciones dinámicas que se adaptan a cada pick.</p></div><div className="draft-status"><span>MOCK DRAFT · PICK</span><strong>{round}.06</strong><button onClick={()=>{setDrafted([]);setRound(1)}}><RefreshCcw size={15}/> Reiniciar</button></div></div>
-    <section className="strategy-section"><SectionHeading eyebrow="01 · ELIGE TU PLAN" title="Estrategia de construcción"/><div className="strategy-grid">{STRATEGIES.map(({id,name,kicker,copy,icon:Icon})=><button className={`strategy-card ${strategy===id?'active':''}`} onClick={()=>setStrategy(id)} key={id}><div><Icon size={21}/>{strategy===id&&<span className="check"><Check size={13}/></span>}</div><span>{kicker}</span><h3>{name}</h3><p>{copy}</p></button>)}</div></section>
-    <section className="draft-layout">
-      <div className="surface draft-board"><div className="card-title-row"><div><span>02 · MEJORES DISPONIBLES</span><h3>Tu board dinámico</h3></div><div className="board-filters"><button>Todos <ChevronDown size={14}/></button><button><SlidersHorizontal size={15}/></button></div></div>
-        <div className="draft-recommendation"><Sparkles size={18}/><div><strong>Recomendación para el pick {round}.06</strong><p>{strategy==='balanced'?'Prioriza valor sin abrir una debilidad nueva.':`Tu estrategia ${STRATEGIES.find(s=>s.id===strategy)?.name} sube jugadores complementarios en el board.`}</p></div></div>
-        <div className="draft-list">{available.slice(0,10).map((player,index)=><div className="draft-row" key={player.id}><span className="draft-rank">{index+1}</span><button className="draft-player" onClick={()=>openPlayer(player)}><PlayerPhoto player={player}/><div><strong>{player.name}</strong><span>{player.team} · {player.position}</span></div></button><div className="fit-score"><span>FIT</span><b>{Math.min(99,Math.round(strategyScore(player,strategy)))}</b></div><div className="category-tags"><span>{player.pts>23?'PTS':player.reb>8?'REB':'EFF'}</span><span>{player.ast>6?'AST':player.blk>1.2?'BLK':'VALUE'}</span></div><button className="draft-button" onClick={()=>{setDrafted([...drafted,player.id]);setRound(round+1)}}>Draftear</button></div>)}</div>
-      </div>
-      <aside className="draft-sidebar"><div className="surface build-card"><span>TU CONSTRUCCIÓN</span><h3>Perfil proyectado</h3><div className="radar-wrap"><svg viewBox="0 0 220 200"><g className="radar-grid"><polygon points="110,12 196,62 175,160 45,160 24,62"/><polygon points="110,38 172,74 157,143 63,143 48,74"/><polygon points="110,67 144,86 136,124 84,124 76,86"/><line x1="110" y1="12" x2="110" y2="110"/><line x1="196" y1="62" x2="110" y2="110"/><line x1="175" y1="160" x2="110" y2="110"/><line x1="45" y1="160" x2="110" y2="110"/><line x1="24" y1="62" x2="110" y2="110"/></g><polygon className="radar-value" points={strategy==='small-ball'?'110,28 182,70 145,145 64,144 35,67':strategy==='punt-ft'?'110,18 165,78 170,156 65,145 48,76':'110,28 174,72 162,147 58,151 40,68'}/></svg><span className="r-top">PTS</span><span className="r-right">AST</span><span className="r-bottom-right">STL</span><span className="r-bottom-left">REB</span><span className="r-left">%</span></div><div className="build-summary"><span><i className="good"/>3 fortalezas</span><span><i/>1 neutral</span><span><i className="bad"/>1 riesgo</span></div></div>
-        <div className="surface drafted-card"><div className="card-title-row"><div><span>TUS PICKS</span><h3>{drafted.length} seleccionados</h3></div></div>{drafted.length===0?<div className="empty-picks"><Trophy size={25}/><p>Tus picks aparecerán aquí y ajustarán el board.</p></div>:drafted.map((id,index)=>{const p=players.find(x=>x.id===id);return <div className="picked-player" key={id}><span>{index+1}</span><PlayerPhoto player={p}/><div><strong>{p.name}</strong><small>{p.position} · {p.team}</small></div><button onClick={()=>setDrafted(drafted.filter(x=>x!==id))}><X size={14}/></button></div>})}</div>
-      </aside>
-    </section>
-  </div>
+  const [strategy,setStrategy]=useState('balanced'); const [round,setRound]=useState(1); const [slot,setSlot]=useState(1); const [drafted,setDrafted]=useStoredState('baseline-draft',[]); const [position,setPosition]=useState('TODOS'); const [rankMode,setRankMode]=useState('FIT')
+  const draftedPlayers=drafted.map(id=>players.find(p=>p.id===id)).filter(Boolean); const strengths=rosterStrengths(draftedPlayers,players)
+  const available=useMemo(()=>players.filter(p=>!drafted.includes(p.id)&&(position==='TODOS'||p.position?.includes(position))).sort((a,b)=>rankMode==='FIT'?strategyScore(b,strategy)-strategyScore(a,strategy):b.value-a.value),[players,drafted,position,strategy,rankMode])
+  return <div className="page draft-page"><div className="draft-header"><div><span className="eyebrow">DRAFT ROOM · DATOS ESPN</span><h1>Construye con intención.</h1><p>El board se recalcula con jugadores reales y cada pick guardado.</p></div><div className="draft-status"><span>PRÓXIMO PICK</span><strong>{round}.{String(slot).padStart(2,'0')}</strong><label>Posición<select value={slot} onChange={e=>setSlot(Number(e.target.value))}>{Array.from({length:12},(_,i)=><option key={i+1}>{i+1}</option>)}</select></label><button onClick={()=>{setDrafted([]);setRound(1)}}><RefreshCcw size={15}/> Reiniciar</button></div></div><section className="strategy-section"><SectionHeading eyebrow="01 · ELIGE TU PLAN" title="Estrategia de construcción"/><div className="strategy-grid">{STRATEGIES.map(({id,name,kicker,copy,icon:Icon})=><button className={`strategy-card ${strategy===id?'active':''}`} onClick={()=>setStrategy(id)} key={id}><div><Icon size={21}/>{strategy===id&&<span className="check"><Check size={13}/></span>}</div><span>{kicker}</span><h3>{name}</h3><p>{copy}</p></button>)}</div></section><section className="draft-layout"><div className="surface draft-board"><div className="card-title-row"><div><span>02 · MEJORES DISPONIBLES</span><h3>Board dinámico</h3></div><div className="board-filters"><select value={position} onChange={e=>setPosition(e.target.value)}><option>TODOS</option>{['PG','SG','SF','PF','C'].map(p=><option key={p}>{p}</option>)}</select><button onClick={()=>setRankMode(rankMode==='FIT'?'VALUE':'FIT')}><SlidersHorizontal size={15}/>{rankMode}</button></div></div><div className="draft-recommendation"><Sparkles size={18}/><div><strong>Recomendación para {round}.{String(slot).padStart(2,'0')}</strong><p>Ordenado por {rankMode==='FIT'?`encaje con ${STRATEGIES.find(s=>s.id===strategy)?.name}`:'valor H2H 8-CAT'}.</p></div></div><div className="draft-list">{available.slice(0,10).map((player,index)=><div className="draft-row" key={player.id}><span className="draft-rank">{index+1}</span><button className="draft-player" onClick={()=>openPlayer(player)}><PlayerPhoto player={player}/><div><strong>{player.name}</strong><span>{player.team} · {player.position}</span></div></button><div className="fit-score"><span>{rankMode}</span><b>{Math.min(99,Math.round(rankMode==='FIT'?strategyScore(player,strategy):player.value))}</b></div><div className="category-tags"><span>{player.pts>23?'PTS':player.reb>8?'REB':'FG%'}</span><span>{player.ast>6?'AST':player.blk>1.2?'BLK':'VALUE'}</span></div><button className="draft-button" onClick={()=>{setDrafted([...drafted,player.id]);setRound(round+1)}}>Draftear</button></div>)}</div></div><aside className="draft-sidebar"><div className="surface build-card"><span>TU CONSTRUCCIÓN REAL</span><h3>Percentiles del draft</h3>{!draftedPlayers.length?<div className="empty-picks"><Target size={25}/><p>Draftea un jugador para calcular tu perfil.</p></div>:<div className="draft-profile-list">{strengths.map(item=><div key={item.key}><span>{item.label}</span><i><em style={{width:`${item.value}%`}}/></i><b>{item.value}</b></div>)}</div>}</div><div className="surface drafted-card"><div className="card-title-row"><div><span>TUS PICKS</span><h3>{drafted.length} seleccionados</h3></div></div>{!draftedPlayers.length?<div className="empty-picks"><Trophy size={25}/><p>Tus picks aparecerán aquí.</p></div>:draftedPlayers.map((p,index)=><div className="picked-player" key={p.id}><span>{index+1}</span><PlayerPhoto player={p}/><div><strong>{p.name}</strong><small>{p.position} · {p.team}</small></div><button onClick={()=>setDrafted(drafted.filter(id=>id!==p.id))} aria-label="Quitar pick"><X size={14}/></button></div>)}</div></aside></section></div>
 }
 
-function PlayerModal({ player, onClose, toggleWatchlist, saved }) {
+function PlayerModal({ player, season, onClose, toggleWatchlist, saved, inRoster, toggleRoster, useTrade }) {
   if(!player)return null
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="player-modal" onMouseDown={e=>e.stopPropagation()}>
-    <button className="modal-close" onClick={onClose}><X size={19}/></button>
-    <div className="player-modal-hero" style={{'--team':TEAM_COLORS[player.team]||'#555'}}><div className="player-modal-copy"><span>{player.teamName||player.team} · {player.position}</span><h2>{player.name}</h2><div><span className="status-dot"/> Activo <em>•</em> {player.age?`${player.age} años`:'NBA'}</div></div><PlayerPhoto player={player} size="hero"/><div className="modal-rating"><span>FANTASY VALUE</span><strong>{player.value}</strong><small>Top {Math.max(1,100-player.value)}%</small></div></div>
-    <div className="modal-content"><div className="modal-actions"><button className={saved?'saved':''} onClick={()=>toggleWatchlist(player.id)}><Star size={16} fill={saved?'currentColor':'none'}/> {saved?'En watchlist':'Añadir a watchlist'}</button><button><ArrowLeftRight size={16}/> Usar en Trade Lab</button></div>
-      <div className="season-line"><div><span>TEMPORADA 2025–26</span><b>{player.gp} GP · {fmt(player.min)} MIN</b></div><span className="positive"><ArrowUpRight size={13}/> ROS estable</span></div>
-      <div className="modal-stats">{CATEGORY_META.map(([key,label])=><div key={key}><span>{label}</span><strong>{fmt(player[key])}{key.includes('Pct')?'%':''}</strong><small>{['pts','ast','stl'].includes(key)?'↑ sobre media':'promedio'}</small></div>)}</div>
-      <div className="modal-insight"><Sparkles size={20}/><div><span>BASELINE INSIGHT</span><p><b>{player.name}</b> aporta valor élite en {player.pts>25?'anotación':player.reb>9?'rebotes':'eficiencia'} y encaja mejor en construcciones que {player.ast>7?'protegen FG% alrededor de un creador primario.':'buscan producción consistente sin sacrificar volumen.'}</p></div></div>
-    </div>
-  </div></div>
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="player-modal" onMouseDown={e=>e.stopPropagation()}><button className="modal-close" onClick={onClose}><X size={19}/></button><div className="player-modal-hero" style={{'--team':TEAM_COLORS[player.team]||'#555'}}><div className="player-modal-copy"><span>{player.teamName||player.team} · {player.position}</span><h2>{player.name}</h2><div><span className="status-dot"/> {player.status==='active'?'Activo':player.status} {player.age&&<><em>•</em>{player.age} años</>}</div></div><PlayerPhoto player={player} size="hero"/><div className="modal-rating"><span>VALUE 8-CAT</span><strong>{player.value}</strong><small>{player.gp} GP</small></div></div><div className="modal-content"><div className="modal-actions"><button className={saved?'saved':''} onClick={()=>toggleWatchlist(player.id)}><Star size={16} fill={saved?'currentColor':'none'}/>{saved?'Quitar de watchlist':'Añadir a watchlist'}</button><button className={inRoster?'saved':''} onClick={()=>toggleRoster(player.id)}><Users size={16}/>{inRoster?'Quitar de mi equipo':'Añadir a mi equipo'}</button><button onClick={()=>useTrade(player.id)}><ArrowLeftRight size={16}/>Usar en Trade Lab</button></div><div className="season-line"><div><span>TEMPORADA {season}</span><b>{player.gp} GP · {fmt(player.min)} MIN</b></div><span>{player.team} · {player.position}</span></div><div className="modal-stats">{CATEGORY_META.map(([key,label])=><div key={key}><span>{label}</span><strong>{fmt(player[key])}{key.includes('Pct')?'%':''}</strong><small>por partido</small></div>)}</div><div className="modal-insight"><Sparkles size={20}/><div><span>LECTURA 8-CAT</span><p><b>{player.name}</b> destaca principalmente en {CATEGORY_META.map(([key,label])=>({label,value:player[key]})).sort((a,b)=>b.value-a.value).slice(0,2).map(x=>x.label).join(' y ')}. Valor calculado únicamente con estadísticas ESPN.</p></div></div></div></div></div>
 }
 
-function ImportModal({ onClose, players, onImported }) {
-  const [league,setLeague]=useState('')
-  const [team,setTeam]=useState('1')
-  const [season,setSeason]=useState('2026')
-  const [status,setStatus]=useState('idle')
-  const importTeam=async()=>{
-    if(!league){setStatus('missing');return}
-    setStatus('loading')
-    try{
-      const url=`/espn-fantasy/apis/v3/games/fba/seasons/${season}/segments/0/leagues/${league}?view=mRoster&view=mTeam`
-      const response=await fetch(url)
-      if(!response.ok)throw new Error()
-      const data=await response.json()
-      const sourceTeam=data.teams?.find(item=>String(item.id)===String(team))
-      const ids=sourceTeam?.roster?.entries?.map(entry=>String(entry.playerPoolEntry?.player?.id)).filter(Boolean)||[]
-      const matched=players.filter(player=>ids.includes(String(player.id)))
-      if(!matched.length)throw new Error()
-      onImported(matched);setStatus('success');setTimeout(onClose,800)
-    }catch{setStatus('error')}
-  }
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="import-modal" onMouseDown={e=>e.stopPropagation()}><button className="modal-close" onClick={onClose}><X size={19}/></button><div className="espn-mark">E</div><span>CONECTA TU LIGA</span><h2>Importar desde ESPN</h2><p>Usa una liga pública para sincronizar tu roster. No necesitas copiar cada jugador.</p><label><span>LEAGUE ID</span><input value={league} onChange={e=>setLeague(e.target.value)} placeholder="Ej. 12345678"/></label><div className="import-fields"><label><span>TEAM ID</span><input value={team} onChange={e=>setTeam(e.target.value)}/></label><label><span>TEMPORADA</span><select value={season} onChange={e=>setSeason(e.target.value)}><option value="2026">2025–26</option><option value="2025">2024–25</option></select></label></div>{status==='missing'&&<div className="form-message error">Escribe el ID de tu liga.</div>}{status==='error'&&<div className="form-message error">No pudimos leer la liga. Verifica que sea pública y que los IDs sean correctos.</div>}{status==='success'&&<div className="form-message success"><Check size={15}/> Equipo sincronizado.</div>}<button className="primary import-submit" onClick={importTeam} disabled={status==='loading'}>{status==='loading'?<><RefreshCcw className="spin" size={17}/> Conectando...</>:<>Importar mi equipo <ArrowRight size={17}/></>}</button><small>Para ligas privadas se requiere autorización de ESPN en una integración de servidor.</small></div></div>
+function ImportModal({ onClose, players, onImported, existing }) {
+  const [leagueId,setLeagueId]=useState(existing?.leagueId||''); const [teamId,setTeamId]=useState(String(existing?.teamId||1)); const [season,setSeason]=useState(String(existing?.season||2026)); const [status,setStatus]=useState('idle')
+  const importTeam=async()=>{if(!leagueId){setStatus('missing');return}setStatus('loading');try{const url=`/espn-fantasy/apis/v3/games/fba/seasons/${season}/segments/0/leagues/${leagueId}?view=mRoster&view=mTeam&view=mMatchup&view=mSettings&view=mStatus`;const response=await fetch(url);if(!response.ok)throw new Error();const data=await response.json();const source=data.teams?.find(t=>String(t.id)===String(teamId));if(!source)throw new Error();const ids=source.roster?.entries?.map(e=>String(e.playerPoolEntry?.player?.id)).filter(Boolean)||[];const matched=players.filter(p=>ids.includes(String(p.id)));if(!matched.length)throw new Error();const period=data.scoringPeriodId||data.status?.currentScoringPeriod;const match=data.schedule?.find(game=>(!period||game.matchupPeriodId===period)&&(String(game.home?.teamId)===String(teamId)||String(game.away?.teamId)===String(teamId)));const opponentId=match?(String(match.home?.teamId)===String(teamId)?match.away?.teamId:match.home?.teamId):null;const opponent=data.teams?.find(t=>String(t.id)===String(opponentId));const opponentIds=opponent?.roster?.entries?.map(e=>String(e.playerPoolEntry?.player?.id)).filter(Boolean)||[];const readRecord=t=>t?.record?.overall?{wins:t.record.overall.wins||0,losses:t.record.overall.losses||0,ties:t.record.overall.ties||0,rank:t.record.overall.rank||t.currentProjectedRank||null}:null;onImported({league:{leagueId:String(leagueId),teamId:String(teamId),season:Number(season),seasonLabel:`${Number(season)-1}-${String(season).slice(-2)}`,leagueName:data.settings?.name||`Liga ESPN ${leagueId}`,teamName:teamName(source),teamAbbrev:source.abbrev||initials(teamName(source)),leagueSize:data.teams?.length||0,record:readRecord(source),opponent:opponent?{name:teamName(opponent),abbrev:opponent.abbrev,record:readRecord(opponent)}:null,opponentRosterIds:opponentIds,scoringPeriodId:period||null,syncedAt:new Date().toISOString()},rosterIds:ids});setStatus('success');setTimeout(onClose,700)}catch{setStatus('error')}}
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="import-modal" onMouseDown={e=>e.stopPropagation()}><button className="modal-close" onClick={onClose}><X size={19}/></button><div className="espn-mark">E</div><span>CONECTA TU LIGA</span><h2>Importar desde ESPN</h2><p>Sincroniza roster, récord y rival desde una liga pública real.</p><label><span>LEAGUE ID</span><input value={leagueId} onChange={e=>setLeagueId(e.target.value)} placeholder="ID de tu liga"/></label><div className="import-fields"><label><span>TEAM ID</span><input value={teamId} onChange={e=>setTeamId(e.target.value)}/></label><label><span>TEMPORADA</span><select value={season} onChange={e=>setSeason(e.target.value)}><option value="2026">2025–26</option><option value="2025">2024–25</option></select></label></div>{status==='missing'&&<div className="form-message error">Escribe el ID de tu liga.</div>}{status==='error'&&<div className="form-message error">No se pudo leer la liga. Confirma que sea pública y revisa los IDs.</div>}{status==='success'&&<div className="form-message success"><Check size={15}/>Datos reales sincronizados.</div>}<button className="primary import-submit" onClick={importTeam} disabled={status==='loading'}>{status==='loading'?<><RefreshCcw className="spin" size={17}/>Conectando...</>:<>Importar mi equipo <ArrowRight size={17}/></>}</button><small>Las ligas privadas requieren autorización de ESPN mediante servidor.</small></div></div>
 }
 
 function SearchModal({ players, onClose, openPlayer, setPage }) {
-  const [query,setQuery]=useState('')
-  const results=players.filter(p=>!query||`${p.name} ${p.team}`.toLowerCase().includes(query.toLowerCase())).slice(0,8)
+  const [query,setQuery]=useState(''); const results=players.filter(p=>!query||`${p.name} ${p.team}`.toLowerCase().includes(query.toLowerCase())).slice(0,8)
   useEffect(()=>{const fn=e=>e.key==='Escape'&&onClose();window.addEventListener('keydown',fn);return()=>window.removeEventListener('keydown',fn)},[onClose])
-  return <div className="search-backdrop" onMouseDown={onClose}><div className="command-menu" onMouseDown={e=>e.stopPropagation()}><label><Search size={20}/><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Busca cualquier jugador..."/><kbd>ESC</kbd></label><span className="command-label">{query?'RESULTADOS':'JUGADORES DESTACADOS'}</span>{results.map(p=><button key={p.id} onClick={()=>{openPlayer(p);onClose()}}><PlayerPhoto player={p}/><div><strong>{p.name}</strong><span>{p.team} · {p.position}</span></div><b>{p.value}</b><ChevronRight size={15}/></button>)}<div className="command-footer"><button onClick={()=>{setPage('players');onClose()}}>Ver todos los jugadores <ArrowRight size={14}/></button><span>↑↓ para navegar</span></div></div></div>
+  return <div className="search-backdrop" onMouseDown={onClose}><div className="command-menu" onMouseDown={e=>e.stopPropagation()}><label><Search size={20}/><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Busca cualquier jugador..."/><kbd>ESC</kbd></label><span className="command-label">{query?'RESULTADOS':'MEJORES VALORES 8-CAT'}</span>{results.map(p=><button key={p.id} onClick={()=>{openPlayer(p);onClose()}}><PlayerPhoto player={p}/><div><strong>{p.name}</strong><span>{p.team} · {p.position}</span></div><b>{p.value}</b><ChevronRight size={15}/></button>)}<div className="command-footer"><button onClick={()=>{setPage('players');onClose()}}>Ver todos <ArrowRight size={14}/></button><span>{results.length} resultados</span></div></div></div>
+}
+
+function NotificationPanel({ league, watchlist, season, count, onClose, onImport, openWatchlist }) {
+  return <div className="popover-backdrop" onMouseDown={onClose}><div className="notification-panel" onMouseDown={e=>e.stopPropagation()}><div className="panel-head"><div><span>ACTIVIDAD</span><h3>Notificaciones</h3></div><button onClick={onClose}><X size={17}/></button></div>{!league&&<button className="notification-item" onClick={onImport}><Upload size={18}/><div><strong>Conecta tu liga ESPN</strong><span>Activa roster, récord y matchup reales.</span></div><ChevronRight size={15}/></button>}<button className="notification-item" onClick={openWatchlist}><Star size={18}/><div><strong>{watchlist.length} en tu watchlist</strong><span>Revisa tus jugadores guardados.</span></div><ChevronRight size={15}/></button><div className="notification-item static"><Activity size={18}/><div><strong>Dataset {season}</strong><span>{count} jugadores cargados desde ESPN.</span></div><Check size={15}/></div></div></div>
+}
+
+function ProfileModal({ user, setUser, onClose }) {
+  const [name,setName]=useState(user.name)
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="profile-modal" onMouseDown={e=>e.stopPropagation()}><button className="modal-close dark-close" onClick={onClose}><X size={18}/></button><div className="profile-avatar">{initials(name)}</div><span>PERFIL LOCAL</span><h2>Tu identidad</h2><p>Este nombre se usa en el dashboard y permanece guardado en este navegador.</p><label>Nombre<input value={name} onChange={e=>setName(e.target.value)} placeholder="Tu nombre"/></label><button className="primary" onClick={()=>{if(name.trim())setUser({...user,name:name.trim()});onClose()}}>Guardar cambios <Check size={16}/></button></div></div>
 }
 
 export default function App() {
-  const { players, season, count, source, loading } = usePlayerData()
-  const [page,setPage]=useState('dashboard')
-  const [collapsed,setCollapsed]=useState(false)
-  const [selected,setSelected]=useState(null)
-  const [showImport,setShowImport]=useState(false)
-  const [showSearch,setShowSearch]=useState(false)
-  const [watchlist,setWatchlist]=useState([])
-  const [customRoster,setCustomRoster]=useState(null)
-  const roster=customRoster||players.filter((_,index)=>[0,2,6,7,11,15,19,24,31,42,53,68].includes(index)).slice(0,12)
+  const {players,season,count,source,loading,error}=usePlayerData(); const [page,setPage]=useState('dashboard'); const [collapsed,setCollapsed]=useState(false); const [selected,setSelected]=useState(null); const [showImport,setShowImport]=useState(false); const [showSearch,setShowSearch]=useState(false); const [showNotifications,setShowNotifications]=useState(false); const [showProfile,setShowProfile]=useState(false)
+  const [user,setUser]=useStoredState('baseline-user',{name:'Javier Rivera'}); const [watchlist,setWatchlist]=useStoredState('baseline-watchlist',[]); const [rosterIds,setRosterIds]=useStoredState('baseline-roster',[]); const [league,setLeague]=useStoredState('baseline-league',null); const [watchlistOnly,setWatchlistOnly]=useState(false); const [tradeSeed,setTradeSeed]=useState(null)
+  const roster=players.filter(p=>rosterIds.includes(String(p.id))); const opponentRoster=players.filter(p=>league?.opponentRosterIds?.includes(String(p.id)))
+  const toggleWatchlist=id=>setWatchlist(list=>list.includes(String(id))?list.filter(item=>item!==String(id)):unique([...list,id])); const toggleRoster=id=>setRosterIds(list=>list.includes(String(id))?list.filter(item=>item!==String(id)):unique([...list,id]))
+  const openWatchlist=()=>{setWatchlistOnly(true);setPage('players');setShowNotifications(false)}; const useTrade=id=>{setTradeSeed(String(id));setPage('trade');setSelected(null)}
+  const handleImport=({league:nextLeague,rosterIds:nextRoster})=>{setLeague(nextLeague);setRosterIds(unique(nextRoster))}
+  useEffect(()=>{const listener=e=>{if(e.ctrlKey&&e.key.toLowerCase()==='k'){e.preventDefault();setShowSearch(true)}};window.addEventListener('keydown',listener);return()=>window.removeEventListener('keydown',listener)},[])
+  if(loading)return <div className="app-loading"><RefreshCcw className="spin" size={24}/><strong>Cargando datos reales de ESPN...</strong></div>
+  if(error||!players.length)return <div className="app-loading error-screen"><Info size={28}/><strong>No se pudo cargar el dataset NBA.</strong><p>Comprueba que public/data/players.json esté disponible.</p><button className="primary" onClick={()=>window.location.reload()}>Reintentar <RefreshCcw size={15}/></button></div>
   const titles={dashboard:'Inicio',team:'Mi equipo',players:'Jugadores',trade:'Trade Lab',draft:'Draft Room'}
-  const toggleWatchlist=id=>setWatchlist(list=>list.includes(id)?list.filter(item=>item!==id):[...list,id])
-  useEffect(()=>{
-    const listener=e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setShowSearch(true)}}
-    window.addEventListener('keydown',listener);return()=>window.removeEventListener('keydown',listener)
-  },[])
-  return <div className="app-shell">
-    <Sidebar page={page} setPage={setPage} collapsed={collapsed} setCollapsed={setCollapsed}/>
-    <main className="main-shell">
-      <Header title={titles[page]} count={page==='players'?count:null} onImport={()=>setShowImport(true)} onSearch={()=>setShowSearch(true)}/>
-      <div className="content-shell">
-        {loading&&<div className="data-loading"><RefreshCcw className="spin" size={14}/> Actualizando datos NBA...</div>}
-        {page==='dashboard'&&<Dashboard players={players} setPage={setPage} openPlayer={setSelected} roster={roster}/>} 
-        {page==='team'&&<TeamPage roster={roster} openPlayer={setSelected} onImport={()=>setShowImport(true)}/>} 
-        {page==='players'&&<PlayersPage players={players} openPlayer={setSelected} watchlist={watchlist} toggleWatchlist={toggleWatchlist}/>} 
-        {page==='trade'&&<TradePage players={players}/>} 
-        {page==='draft'&&<DraftPage players={players} openPlayer={setSelected}/>} 
-      </div>
-      <footer><span>BASELINE · NBA FANTASY ANALYZER</span><span>Datos: {source} · {season} · {count} jugadores</span><span>Actualización local</span></footer>
-    </main>
-    <nav className="mobile-nav">{NAV.map(({id,label,icon:Icon})=><button className={page===id?'active':''} onClick={()=>setPage(id)} key={id}><Icon size={19}/><span>{label}</span></button>)}</nav>
-    {selected&&<PlayerModal player={selected} onClose={()=>setSelected(null)} toggleWatchlist={toggleWatchlist} saved={watchlist.includes(selected.id)}/>} 
-    {showImport&&<ImportModal players={players} onClose={()=>setShowImport(false)} onImported={setCustomRoster}/>} 
+  return <div className="app-shell"><Sidebar page={page} setPage={setPage} collapsed={collapsed} setCollapsed={setCollapsed} user={user} onProfile={()=>setShowProfile(true)}/><main className="main-shell"><Header title={titles[page]} count={page==='players'?count:null} onImport={()=>setShowImport(true)} onSearch={()=>setShowSearch(true)} onNotifications={()=>setShowNotifications(true)} notificationCount={(league?0:1)+watchlist.length}/><div className="content-shell">
+    {page==='dashboard'&&<Dashboard players={players} roster={roster} opponentRoster={opponentRoster} league={league} watchlist={watchlist} setPage={setPage} openPlayer={setSelected} toggleWatchlist={toggleWatchlist} onImport={()=>setShowImport(true)} openWatchlist={openWatchlist}/>} 
+    {page==='team'&&<TeamPage roster={roster} players={players} league={league} openPlayer={setSelected} onImport={()=>setShowImport(true)} setPage={setPage}/>} 
+    {page==='players'&&<PlayersPage players={players} openPlayer={setSelected} watchlist={watchlist} toggleWatchlist={toggleWatchlist} watchlistOnly={watchlistOnly} setWatchlistOnly={setWatchlistOnly}/>} 
+    {page==='trade'&&<TradePage players={players} roster={roster} league={league} seedPlayer={tradeSeed} clearSeed={()=>setTradeSeed(null)}/>} 
+    {page==='draft'&&<DraftPage players={players} openPlayer={setSelected}/>} 
+  </div><footer><span>BASELINE · H2H 8-CAT</span><span>Datos: {source} · {season} · {count} jugadores</span><span>{league?`ESPN · ${timeAgo(league.syncedAt)}`:'Sin liga conectada'}</span></footer></main><nav className="mobile-nav">{NAV.map(({id,label,icon:Icon})=><button className={page===id?'active':''} onClick={()=>setPage(id)} key={id}><Icon size={19}/><span>{label}</span></button>)}</nav>
+    {selected&&<PlayerModal player={selected} season={season} onClose={()=>setSelected(null)} toggleWatchlist={toggleWatchlist} saved={watchlist.includes(String(selected.id))} inRoster={rosterIds.includes(String(selected.id))} toggleRoster={toggleRoster} useTrade={useTrade}/>} 
+    {showImport&&<ImportModal players={players} existing={league} onClose={()=>setShowImport(false)} onImported={handleImport}/>} 
     {showSearch&&<SearchModal players={players} onClose={()=>setShowSearch(false)} openPlayer={setSelected} setPage={setPage}/>} 
+    {showNotifications&&<NotificationPanel league={league} watchlist={watchlist} season={season} count={count} onClose={()=>setShowNotifications(false)} onImport={()=>{setShowNotifications(false);setShowImport(true)}} openWatchlist={openWatchlist}/>} 
+    {showProfile&&<ProfileModal user={user} setUser={setUser} onClose={()=>setShowProfile(false)}/>} 
   </div>
 }
