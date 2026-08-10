@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity, ArrowLeftRight, ArrowRight, ArrowUpRight, Bell, Check, ChevronDown,
   ChevronLeft, ChevronRight, Crown, Gauge, Info, LayoutDashboard, MoreHorizontal,
@@ -101,6 +101,71 @@ function timeAgo(iso) {
   return hours < 24 ? `Hace ${hours} h` : `Hace ${Math.round(hours / 24)} d`
 }
 
+function normalizeDraftState(data, league, players) {
+  const detail=data.draftDetail||{}
+  const rawPicks=Array.isArray(detail.picks)?detail.picks:Array.isArray(detail.pickHistory)?detail.pickHistory:[]
+  const picks=rawPicks.map((pick,index)=>{
+    const playerId=String(pick.playerId||pick.player?.id||pick.athleteId||'')
+    const teamId=String(pick.teamId||pick.nominatingTeamId||pick.team?.id||'')
+    return {
+      id:String(pick.id||`${teamId}-${playerId}-${index}`), playerId, teamId,
+      overall:Number(pick.overallPickNumber||pick.overall||index+1),
+      round:Number(pick.roundId||pick.round||Math.floor(index/Math.max(1,data.teams?.length||league?.leagueSize||1))+1),
+      roundPick:Number(pick.roundPickNumber||pick.roundPick||index%Math.max(1,data.teams?.length||league?.leagueSize||1)+1),
+      bidAmount:pick.bidAmount??null,
+      player:players.find(player=>String(player.id)===playerId)||null,
+    }
+  }).sort((a,b)=>a.overall-b.overall)
+  const teams=(data.teams||league?.teams||[]).map(team=>({id:String(team.id),name:teamName(team),abbrev:team.abbrev||initials(teamName(team))}))
+  const draftSettings=data.settings?.draftSettings||{}
+  const rawOrder=detail.pickOrder||draftSettings.pickOrder||draftSettings.order||[]
+  const order=(Array.isArray(rawOrder)?rawOrder:[]).map(item=>String(typeof item==='object'?(item.teamId||item.id):item)).filter(Boolean)
+  const teamCount=Math.max(1,order.length||teams.length||league?.leagueSize||1)
+  const nextOverall=picks.length+1
+  const currentRound=Number(detail.round||detail.currentRound||Math.floor((nextOverall-1)/teamCount)+1)
+  const position=(nextOverall-1)%teamCount
+  const snakeIndex=currentRound%2===0?teamCount-1-position:position
+  const inferredTeamId=order.length?order[snakeIndex]||null:null
+  const currentTeamId=String(detail.currentTeamId||detail.onClockTeamId||detail.currentPick?.teamId||inferredTeamId||'')
+  const completed=Boolean(detail.drafted||detail.complete||detail.completed)
+  const inProgress=Boolean(detail.inProgress??(!completed&&picks.length>0))
+  const currentTeam=teams.find(team=>team.id===currentTeamId)||league?.teams?.find(team=>String(team.id)===currentTeamId)||null
+  return {
+    picks, teams, order, completed, inProgress,
+    ready:Boolean(detail.ready||detail.draftReady||data.status?.isActive),
+    currentRound, nextOverall, currentTeamId, currentTeam,
+    secondsPerPick:Number(detail.secondsPerPick||draftSettings.timePerSelection||0),
+    totalRounds:Number(detail.rounds||draftSettings.rounds||0),
+    rawStatus:Object.keys(detail).length?'available':'waiting',
+  }
+}
+
+function useLiveDraft({ enabled, league, auth, players }) {
+  const [draft,setDraft]=useState(null)
+  const [error,setError]=useState('')
+  const [refreshing,setRefreshing]=useState(false)
+  const [lastUpdated,setLastUpdated]=useState(null)
+  const inFlight=useRef(false)
+  const refresh=useCallback(async()=>{
+    if(!league||inFlight.current)return
+    if(league.isPrivate&&!auth?.swid){setError('Vuelve a autenticar la liga privada para iniciar el seguimiento live.');return}
+    inFlight.current=true;setRefreshing(true)
+    try{
+      const response=await fetch('/api/espn/draft',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({leagueId:league.leagueId,season:league.season,swid:auth?.swid,espnS2:auth?.espnS2})})
+      const payload=await response.json()
+      if(!response.ok)throw new Error(payload.error||'No se pudo leer el draft de ESPN.')
+      setDraft(normalizeDraftState(payload.data,league,players));setError('');setLastUpdated(new Date().toISOString())
+    }catch(fetchError){setError(fetchError.message)}finally{inFlight.current=false;setRefreshing(false)}
+  },[league,auth?.swid,auth?.espnS2,players])
+  useEffect(()=>{
+    if(!enabled||!league)return
+    refresh()
+    const interval=setInterval(refresh,2500)
+    return()=>clearInterval(interval)
+  },[enabled,league,refresh])
+  return { draft,error,refreshing,lastUpdated,refresh }
+}
+
 function PlayerPhoto({ player, size = 'md' }) {
   const [failed, setFailed] = useState(false)
   if (!player) return null
@@ -190,12 +255,28 @@ function PlayersPage({ players, openPlayer, watchlist, toggleWatchlist, watchlis
   </div>
 }
 
+function LeagueComparison({ league, players }) {
+  const teams=useMemo(()=>league.teams.map(team=>{const roster=players.filter(player=>team.rosterIds.includes(String(player.id)));return {...team,roster,projection:projectRoster(roster),value:roster.reduce((sum,player)=>sum+Number(player.value||0),0)}}).sort((a,b)=>b.value-a.value),[league.teams,players])
+  const [leftId,setLeftId]=useState(String(league.teamId))
+  const [rightId,setRightId]=useState(String(league.opponent?.id||teams.find(team=>team.id!==String(league.teamId))?.id||''))
+  useEffect(()=>{setLeftId(String(league.teamId));setRightId(String(league.opponent?.id||teams.find(team=>team.id!==String(league.teamId))?.id||''))},[league.teamId,league.opponent?.id,teams])
+  useEffect(()=>{if(leftId===rightId)setRightId(teams.find(team=>team.id!==leftId)?.id||'')},[leftId,rightId,teams])
+  const left=teams.find(team=>team.id===leftId); const right=teams.find(team=>team.id===rightId); const comparison=left&&right?compareRosters(left.roster,right.roster):null
+  return <section className="league-comparison"><SectionHeading eyebrow="LIGA COMPLETA" title="Compara todos los equipos." description={`${teams.length} rosters importados desde ESPN y valorados con el mismo modelo H2H 8-CAT.`}/>
+    <div className="surface compare-workbench"><div className="compare-selectors"><label>Equipo A<select value={leftId} onChange={e=>setLeftId(e.target.value)}>{teams.map(team=><option value={team.id} key={team.id}>{team.name}</option>)}</select></label><ArrowLeftRight size={20}/><label>Equipo B<select value={rightId} onChange={e=>setRightId(e.target.value)}>{teams.filter(team=>team.id!==leftId).map(team=><option value={team.id} key={team.id}>{team.name}</option>)}</select></label></div>
+      {comparison&&<><div className="compare-score"><div><span>{left.name}</span><strong>{comparison.wins}</strong><small>VALUE {left.value}</small></div><em>—</em><div><span>{right.name}</span><strong>{comparison.losses}</strong><small>VALUE {right.value}</small></div></div><div className="compare-categories">{comparison.categories.map(category=><div key={category.key}><b className={category.win?'winner':''}>{fmt(category.mine)}{category.key.includes('Pct')?'%':''}</b><span>{category.label}</span><b className={!category.win?'winner':''}>{fmt(category.theirs)}{category.key.includes('Pct')?'%':''}</b></div>)}</div></>}
+    </div>
+    <div className="surface league-table-wrap"><table className="league-table"><thead><tr><th>#</th><th>EQUIPO</th><th>RÉCORD</th><th>JUG.</th><th>VALUE</th>{CATEGORY_META.map(([,label])=><th key={label}>{label}</th>)}<th/></tr></thead><tbody>{teams.map((team,index)=><tr className={team.id===String(league.teamId)?'my-team':''} key={team.id}><td>{index+1}</td><td><div className="league-team-name"><span>{team.abbrev}</span><strong>{team.name}</strong></div></td><td>{team.record?`${team.record.wins}—${team.record.losses}`:'—'}</td><td>{team.roster.length}</td><td><b>{team.value}</b></td>{CATEGORY_META.map(([key])=><td key={key}>{team.projection?fmt(team.projection[key]):'—'}{team.projection&&key.includes('Pct')?'%':''}</td>)}<td><button onClick={()=>{setLeftId(String(league.teamId));setRightId(team.id)}} disabled={team.id===String(league.teamId)}>Comparar</button></td></tr>)}</tbody></table></div>
+  </section>
+}
+
 function TeamPage({ roster, players, league, openPlayer, onImport, setPage }) {
   const strengths=useMemo(()=>rosterStrengths(roster,players),[roster,players]); const weakest=[...strengths].sort((a,b)=>a.value-b.value).slice(0,2); const total=roster.reduce((s,p)=>s+p.value,0)
-  if(!roster.length)return <div className="page team-page"><SectionHeading eyebrow="MI EQUIPO" title="Conecta tu roster." description="No mostramos un equipo ficticio: importa ESPN o añade jugadores reales manualmente."/><div className="surface large-empty"><EmptyState icon={Users} title="Todavía no hay jugadores" copy="Puedes importar una liga pública de ESPN o construir el roster desde Jugadores." action={onImport} actionLabel="Importar ESPN"/><button className="outline-button" onClick={()=>setPage('players')}>Construir manualmente <ArrowRight size={15}/></button></div></div>
+  if(!roster.length)return <div className="page team-page"><SectionHeading eyebrow="MI EQUIPO" title="Conecta tu roster." description="No mostramos un equipo ficticio: importa ESPN o añade jugadores reales manualmente."/><div className="surface large-empty"><EmptyState icon={Users} title="Todavía no hay jugadores" copy="Puedes importar una liga pública o privada de ESPN, o construir el roster desde Jugadores." action={onImport} actionLabel="Importar ESPN"/><button className="outline-button" onClick={()=>setPage('players')}>Construir manualmente <ArrowRight size={15}/></button></div></div>
   return <div className="page team-page"><div className="team-hero"><div><span className="eyebrow">MI EQUIPO · {league?'ESPN':'MANUAL'}</span><h1>{league?.teamName||'Equipo de Javier'}</h1><p>{league?`${league.leagueName} · H2H 8-CAT · ${league.leagueSize} equipos`:'Roster H2H 8-CAT guardado localmente'}</p></div><div className="team-record"><span>RÉCORD</span><strong>{league?.record?`${league.record.wins}—${league.record.losses}`:'—'}</strong><small>{league?.record?.rank?`#${league.record.rank}`:'Sin datos ESPN'}</small></div><div className="team-record"><span>VALOR</span><strong>{total}</strong><small>{roster.length} jugadores</small></div><button className="outline-button light" onClick={onImport}><RefreshCcw size={16}/>{league?'Sincronizar':'Importar ESPN'}</button></div>
     <section className="team-insights"><div className="surface strength-card"><span>PERFIL REAL DEL ROSTER</span><h3>Percentiles 8-CAT</h3>{strengths.map(item=><div className="strength-row" key={item.key}><b>{item.label}</b><div><i className={item.type} style={{width:`${item.value}%`}}/></div><span>{item.value}</span></div>)}</div><div className="surface recommendation-card"><div className="insight-icon"><Sparkles size={21}/></div><span>INSIGHT DEL ROSTER</span><h3>{weakest.length?`Refuerza ${weakest.map(x=>x.label).join(' y ')}.`:'Roster listo'}</h3><p>{weakest.length?`Estas son las categorías con menor percentil frente al pool NBA real. El Trade Lab priorizará su impacto.`:'Añade jugadores para calcular fortalezas.'}</p><button onClick={()=>setPage('trade')}>Buscar objetivos de trade <ArrowRight size={15}/></button></div></section>
     <section className="roster-section"><div className="card-title-row"><div><span>ROSTER ACTUAL</span><h3>{roster.length} jugadores</h3></div><div className="last-sync"><i/>{league?timeAgo(league.syncedAt):'Guardado localmente'}</div></div><div className="roster-grid">{roster.map((player,index)=><button className="team-player-card" onClick={()=>openPlayer(player)} key={player.id}><div className="slot">{index<9?'ACTIVO':'BE'}</div><PlayerPhoto player={player} size="xl"/><div className="team-card-copy"><span>{player.team} · {player.position}</span><h3>{player.name}</h3></div><div className="card-value"><span>8-CAT</span><strong>{player.value}</strong></div><div className="stat-triplet"><div><span>PTS</span><b>{fmt(player.pts)}</b></div><div><span>REB</span><b>{fmt(player.reb)}</b></div><div><span>AST</span><b>{fmt(player.ast)}</b></div></div><div className="next-game"><span>{player.gp} GP</span><b>{fmt(player.min)} MIN</b></div></button>)}</div></section>
+    {league?.teams?.length>1&&<LeagueComparison league={league} players={players}/>} 
   </div>
 }
 
@@ -221,11 +302,45 @@ function TradePage({ players, roster, league, seedPlayer, clearSeed }) {
 
 function strategyScore(player,strategy){const base=player.value;if(strategy==='punt-ft')return base+player.reb*1.2+player.blk*4+player.fgPct*.12-player.ftPct*.05;if(strategy==='small-ball')return base+player.ast*1.4+player.stl*3+player.threeMade*3+player.ftPct*.08;if(strategy==='punt-ast')return base+player.reb*.8+player.blk*3+player.fgPct*.1-player.ast*.25;return base}
 
-function DraftPage({ players, openPlayer }) {
-  const [strategy,setStrategy]=useState('balanced'); const [round,setRound]=useState(1); const [slot,setSlot]=useState(1); const [drafted,setDrafted]=useStoredState('baseline-draft',[]); const [position,setPosition]=useState('TODOS'); const [rankMode,setRankMode]=useState('FIT')
-  const draftedPlayers=drafted.map(id=>players.find(p=>p.id===id)).filter(Boolean); const strengths=rosterStrengths(draftedPlayers,players)
-  const available=useMemo(()=>players.filter(p=>!drafted.includes(p.id)&&(position==='TODOS'||p.position?.includes(position))).sort((a,b)=>rankMode==='FIT'?strategyScore(b,strategy)-strategyScore(a,strategy):b.value-a.value),[players,drafted,position,strategy,rankMode])
-  return <div className="page draft-page"><div className="draft-header"><div><span className="eyebrow">DRAFT ROOM · DATOS ESPN</span><h1>Construye con intención.</h1><p>El board se recalcula con jugadores reales y cada pick guardado.</p></div><div className="draft-status"><span>PRÓXIMO PICK</span><strong>{round}.{String(slot).padStart(2,'0')}</strong><label>Posición<select value={slot} onChange={e=>setSlot(Number(e.target.value))}>{Array.from({length:12},(_,i)=><option key={i+1}>{i+1}</option>)}</select></label><button onClick={()=>{setDrafted([]);setRound(1)}}><RefreshCcw size={15}/> Reiniciar</button></div></div><section className="strategy-section"><SectionHeading eyebrow="01 · ELIGE TU PLAN" title="Estrategia de construcción"/><div className="strategy-grid">{STRATEGIES.map(({id,name,kicker,copy,icon:Icon})=><button className={`strategy-card ${strategy===id?'active':''}`} onClick={()=>setStrategy(id)} key={id}><div><Icon size={21}/>{strategy===id&&<span className="check"><Check size={13}/></span>}</div><span>{kicker}</span><h3>{name}</h3><p>{copy}</p></button>)}</div></section><section className="draft-layout"><div className="surface draft-board"><div className="card-title-row"><div><span>02 · MEJORES DISPONIBLES</span><h3>Board dinámico</h3></div><div className="board-filters"><select value={position} onChange={e=>setPosition(e.target.value)}><option>TODOS</option>{['PG','SG','SF','PF','C'].map(p=><option key={p}>{p}</option>)}</select><button onClick={()=>setRankMode(rankMode==='FIT'?'VALUE':'FIT')}><SlidersHorizontal size={15}/>{rankMode}</button></div></div><div className="draft-recommendation"><Sparkles size={18}/><div><strong>Recomendación para {round}.{String(slot).padStart(2,'0')}</strong><p>Ordenado por {rankMode==='FIT'?`encaje con ${STRATEGIES.find(s=>s.id===strategy)?.name}`:'valor H2H 8-CAT'}.</p></div></div><div className="draft-list">{available.slice(0,10).map((player,index)=><div className="draft-row" key={player.id}><span className="draft-rank">{index+1}</span><button className="draft-player" onClick={()=>openPlayer(player)}><PlayerPhoto player={player}/><div><strong>{player.name}</strong><span>{player.team} · {player.position}</span></div></button><div className="fit-score"><span>{rankMode}</span><b>{Math.min(99,Math.round(rankMode==='FIT'?strategyScore(player,strategy):player.value))}</b></div><div className="category-tags"><span>{player.pts>23?'PTS':player.reb>8?'REB':'FG%'}</span><span>{player.ast>6?'AST':player.blk>1.2?'BLK':'VALUE'}</span></div><button className="draft-button" onClick={()=>{setDrafted([...drafted,player.id]);setRound(round+1)}}>Draftear</button></div>)}</div></div><aside className="draft-sidebar"><div className="surface build-card"><span>TU CONSTRUCCIÓN REAL</span><h3>Percentiles del draft</h3>{!draftedPlayers.length?<div className="empty-picks"><Target size={25}/><p>Draftea un jugador para calcular tu perfil.</p></div>:<div className="draft-profile-list">{strengths.map(item=><div key={item.key}><span>{item.label}</span><i><em style={{width:`${item.value}%`}}/></i><b>{item.value}</b></div>)}</div>}</div><div className="surface drafted-card"><div className="card-title-row"><div><span>TUS PICKS</span><h3>{drafted.length} seleccionados</h3></div></div>{!draftedPlayers.length?<div className="empty-picks"><Trophy size={25}/><p>Tus picks aparecerán aquí.</p></div>:draftedPlayers.map((p,index)=><div className="picked-player" key={p.id}><span>{index+1}</span><PlayerPhoto player={p}/><div><strong>{p.name}</strong><small>{p.position} · {p.team}</small></div><button onClick={()=>setDrafted(drafted.filter(id=>id!==p.id))} aria-label="Quitar pick"><X size={14}/></button></div>)}</div></aside></section></div>
+function DraftPage({ players, openPlayer, league, espnAuth, onReconnect }) {
+  const [strategy,setStrategy]=useState('balanced')
+  const [manualRound,setManualRound]=useState(1)
+  const [slot,setSlot]=useState(1)
+  const [manualDrafted,setManualDrafted]=useStoredState('baseline-draft',[])
+  const [queue,setQueue]=useStoredState('baseline-draft-queue',[])
+  const [position,setPosition]=useState('TODOS')
+  const [rankMode,setRankMode]=useState('FIT')
+  const [liveEnabled,setLiveEnabled]=useState(false)
+  const live=useLiveDraft({enabled:liveEnabled,league,auth:espnAuth,players})
+  const liveDrafted=live.draft?.picks.map(pick=>pick.playerId).filter(Boolean)||[]
+  const draftedIds=liveEnabled&&live.draft?liveDrafted:manualDrafted
+  const activeQueue=queue.filter(id=>!draftedIds.includes(id))
+  const myPicks=liveEnabled&&live.draft
+    ? live.draft.picks.filter(pick=>pick.teamId===String(league?.teamId)).map(pick=>pick.player).filter(Boolean)
+    : manualDrafted.map(id=>players.find(player=>player.id===id)).filter(Boolean)
+  const strengths=rosterStrengths(myPicks,players)
+  const currentRound=liveEnabled&&live.draft?live.draft.currentRound:manualRound
+  const currentPick=liveEnabled&&live.draft?`#${live.draft.nextOverall}`:`${manualRound}.${String(slot).padStart(2,'0')}`
+  const myTurn=liveEnabled&&live.draft?.currentTeamId===String(league?.teamId)
+  const canConnect=Boolean(league)&&(!league.isPrivate||Boolean(espnAuth?.swid))
+  const available=useMemo(()=>players.filter(player=>!draftedIds.includes(player.id)&&(position==='TODOS'||player.position?.includes(position))).sort((a,b)=>rankMode==='FIT'?strategyScore(b,strategy)-strategyScore(a,strategy):b.value-a.value),[players,draftedIds,position,strategy,rankMode])
+  const toggleQueue=id=>setQueue(items=>items.includes(id)?items.filter(item=>item!==id):unique([...items,id]))
+
+  return <div className="page draft-page">
+    <div className="draft-header"><div><span className="eyebrow">DRAFT ROOM · {liveEnabled?'ESPN LIVE':'PREPARACIÓN'}</span><h1>{myTurn?'Estás en el reloj.':'Construye con intención.'}</h1><p>{liveEnabled?'Picks sincronizados automáticamente; confirma tus selecciones dentro de ESPN.':'Conecta la liga para convertir este board en un asistente live.'}</p></div><div className="draft-status"><span>{liveEnabled?'PRÓXIMO PICK':'PICK MANUAL'}</span><strong>{currentPick}</strong>{!liveEnabled&&<label>Posición<select value={slot} onChange={e=>setSlot(Number(e.target.value))}>{Array.from({length:12},(_,i)=><option key={i+1}>{i+1}</option>)}</select></label>}{!liveEnabled&&<button onClick={()=>{setManualDrafted([]);setManualRound(1)}}><RefreshCcw size={15}/> Reiniciar</button>}</div></div>
+
+    <section className={`live-draft-console ${liveEnabled?'connected':''} ${myTurn?'my-turn':''}`}><div className="live-console-head"><div className="live-indicator"><i/><div><span>ESPN DRAFT SYNC</span><strong>{!league?'Liga no conectada':liveEnabled?(live.draft?.completed?'Draft finalizado':live.error?'Conexión interrumpida':'Seguimiento activo'):'Listo para conectar'}</strong></div></div><div className="live-actions">{liveEnabled&&<button onClick={live.refresh} disabled={live.refreshing}><RefreshCcw className={live.refreshing?'spin':''} size={15}/>Actualizar</button>}{liveEnabled?<button onClick={()=>setLiveEnabled(false)}><X size={15}/>Desconectar</button>:<button className="connect-live" onClick={()=>canConnect?setLiveEnabled(true):onReconnect()}>{canConnect?<><Activity size={15}/>Conectar draft live</>:<><Upload size={15}/>{league?.isPrivate?'Reautenticar ESPN':'Importar liga ESPN'}</>}</button>}</div></div>
+      {live.error&&<div className="live-error"><Info size={15}/><span>{live.error}</span>{league?.isPrivate&&!espnAuth?.swid&&<button onClick={onReconnect}>Introducir credenciales</button>}</div>}
+      {liveEnabled&&live.draft&&<div className="live-stats"><div><span>EN EL RELOJ</span><strong>{live.draft.completed?'—':live.draft.currentTeam?.name||'Esperando ESPN'}</strong></div><div><span>PICK</span><strong>{live.draft.nextOverall}</strong></div><div><span>RONDA</span><strong>{live.draft.currentRound}{live.draft.totalRounds?` / ${live.draft.totalRounds}`:''}</strong></div><div><span>SELECCIONES</span><strong>{live.draft.picks.length}</strong></div><div><span>ACTUALIZADO</span><strong>{live.lastUpdated?timeAgo(live.lastUpdated):'—'}</strong></div></div>}
+      {myTurn&&<div className="on-clock-banner"><Zap size={18}/><div><strong>Javier Rivera está en el reloj</strong><span>El board ya excluyó todos los picks de ESPN y recalculó el mejor fit.</span></div></div>}
+      {liveEnabled&&live.draft?.picks.length>0&&<div className="live-pick-feed"><span>ÚLTIMOS PICKS</span><div>{live.draft.picks.slice(-6).reverse().map(pick=><div key={pick.id}>{pick.player?<PlayerPhoto player={pick.player}/>:<div className="unknown-pick">?</div>}<div><strong>{pick.player?.name||`Jugador ESPN ${pick.playerId}`}</strong><small>{live.draft.teams.find(team=>team.id===pick.teamId)?.name||`Equipo ${pick.teamId}`} · #{pick.overall}</small></div></div>)}</div></div>}
+    </section>
+
+    <section className="strategy-section"><SectionHeading eyebrow="01 · ELIGE TU PLAN" title="Estrategia de construcción"/><div className="strategy-grid">{STRATEGIES.map(({id,name,kicker,copy,icon:Icon})=><button className={`strategy-card ${strategy===id?'active':''}`} onClick={()=>setStrategy(id)} key={id}><div><Icon size={21}/>{strategy===id&&<span className="check"><Check size={13}/></span>}</div><span>{kicker}</span><h3>{name}</h3><p>{copy}</p></button>)}</div></section>
+    <section className="draft-layout"><div className="surface draft-board"><div className="card-title-row"><div><span>02 · MEJORES DISPONIBLES</span><h3>Board {liveEnabled?'live':'dinámico'}</h3></div><div className="board-filters"><select value={position} onChange={e=>setPosition(e.target.value)}><option>TODOS</option>{['PG','SG','SF','PF','C'].map(p=><option key={p}>{p}</option>)}</select><button onClick={()=>setRankMode(rankMode==='FIT'?'VALUE':'FIT')}><SlidersHorizontal size={15}/>{rankMode}</button></div></div><div className="draft-recommendation"><Sparkles size={18}/><div><strong>Recomendación para {currentPick}</strong><p>{liveEnabled&&live.draft?`${live.draft.picks.length} jugadores eliminados automáticamente. `:''}Ordenado por {rankMode==='FIT'?`encaje con ${STRATEGIES.find(s=>s.id===strategy)?.name}`:'valor H2H 8-CAT'}.</p></div></div><div className="draft-list">{available.slice(0,10).map((player,index)=><div className={`draft-row ${queue.includes(player.id)?'queued':''}`} key={player.id}><span className="draft-rank">{index+1}</span><button className="draft-player" onClick={()=>openPlayer(player)}><PlayerPhoto player={player}/><div><strong>{player.name}</strong><span>{player.team} · {player.position}</span></div></button><div className="fit-score"><span>{rankMode}</span><b>{Math.min(99,Math.round(rankMode==='FIT'?strategyScore(player,strategy):player.value))}</b></div><div className="category-tags"><span>{player.pts>23?'PTS':player.reb>8?'REB':'FG%'}</span><span>{player.ast>6?'AST':player.blk>1.2?'BLK':'VALUE'}</span></div><button className="draft-button" onClick={()=>liveEnabled?toggleQueue(player.id):(setManualDrafted([...manualDrafted,player.id]),setManualRound(manualRound+1))}>{liveEnabled?(queue.includes(player.id)?'Quitar cola':'A la cola'):'Draftear'}</button></div>)}</div></div>
+      <aside className="draft-sidebar"><div className="surface build-card"><span>{liveEnabled?'MI ROSTER ESPN':'TU CONSTRUCCIÓN REAL'}</span><h3>Percentiles del draft</h3>{!myPicks.length?<div className="empty-picks"><Target size={25}/><p>{liveEnabled?'Tus picks aparecerán al sincronizarse.':'Draftea un jugador para calcular tu perfil.'}</p></div>:<div className="draft-profile-list">{strengths.map(item=><div key={item.key}><span>{item.label}</span><i><em style={{width:`${item.value}%`}}/></i><b>{item.value}</b></div>)}</div>}</div><div className="surface drafted-card"><div className="card-title-row"><div><span>{liveEnabled?'MIS PICKS ESPN':'TUS PICKS'}</span><h3>{myPicks.length} seleccionados</h3></div></div>{!myPicks.length?<div className="empty-picks"><Trophy size={25}/><p>Tus picks aparecerán aquí.</p></div>:myPicks.map((player,index)=><div className="picked-player" key={player.id}><span>{index+1}</span><PlayerPhoto player={player}/><div><strong>{player.name}</strong><small>{player.position} · {player.team}</small></div>{!liveEnabled&&<button onClick={()=>setManualDrafted(manualDrafted.filter(id=>id!==player.id))} aria-label="Quitar pick"><X size={14}/></button>}</div>)}</div>{liveEnabled&&<div className="surface queue-card"><div className="card-title-row"><div><span>COLA LOCAL</span><h3>{activeQueue.length} jugadores</h3></div></div>{activeQueue.map((id,index)=>{const player=players.find(item=>item.id===id);return player?<div className="picked-player" key={id}><span>{index+1}</span><PlayerPhoto player={player}/><div><strong>{player.name}</strong><small>FIT {Math.min(99,Math.round(strategyScore(player,strategy)))}</small></div><button onClick={()=>toggleQueue(id)} aria-label="Quitar de cola"><X size={14}/></button></div>:null})}</div>}</aside>
+    </section>
+  </div>
 }
 
 function PlayerModal({ player, season, onClose, toggleWatchlist, saved, inRoster, toggleRoster, useTrade }) {
@@ -234,9 +349,46 @@ function PlayerModal({ player, season, onClose, toggleWatchlist, saved, inRoster
 }
 
 function ImportModal({ onClose, players, onImported, existing }) {
-  const [leagueId,setLeagueId]=useState(existing?.leagueId||''); const [teamId,setTeamId]=useState(String(existing?.teamId||1)); const [season,setSeason]=useState(String(existing?.season||2026)); const [status,setStatus]=useState('idle')
-  const importTeam=async()=>{if(!leagueId){setStatus('missing');return}setStatus('loading');try{const url=`/espn-fantasy/apis/v3/games/fba/seasons/${season}/segments/0/leagues/${leagueId}?view=mRoster&view=mTeam&view=mMatchup&view=mSettings&view=mStatus`;const response=await fetch(url);if(!response.ok)throw new Error();const data=await response.json();const source=data.teams?.find(t=>String(t.id)===String(teamId));if(!source)throw new Error();const ids=source.roster?.entries?.map(e=>String(e.playerPoolEntry?.player?.id)).filter(Boolean)||[];const matched=players.filter(p=>ids.includes(String(p.id)));if(!matched.length)throw new Error();const period=data.scoringPeriodId||data.status?.currentScoringPeriod;const match=data.schedule?.find(game=>(!period||game.matchupPeriodId===period)&&(String(game.home?.teamId)===String(teamId)||String(game.away?.teamId)===String(teamId)));const opponentId=match?(String(match.home?.teamId)===String(teamId)?match.away?.teamId:match.home?.teamId):null;const opponent=data.teams?.find(t=>String(t.id)===String(opponentId));const opponentIds=opponent?.roster?.entries?.map(e=>String(e.playerPoolEntry?.player?.id)).filter(Boolean)||[];const readRecord=t=>t?.record?.overall?{wins:t.record.overall.wins||0,losses:t.record.overall.losses||0,ties:t.record.overall.ties||0,rank:t.record.overall.rank||t.currentProjectedRank||null}:null;onImported({league:{leagueId:String(leagueId),teamId:String(teamId),season:Number(season),seasonLabel:`${Number(season)-1}-${String(season).slice(-2)}`,leagueName:data.settings?.name||`Liga ESPN ${leagueId}`,teamName:teamName(source),teamAbbrev:source.abbrev||initials(teamName(source)),leagueSize:data.teams?.length||0,record:readRecord(source),opponent:opponent?{name:teamName(opponent),abbrev:opponent.abbrev,record:readRecord(opponent)}:null,opponentRosterIds:opponentIds,scoringPeriodId:period||null,syncedAt:new Date().toISOString()},rosterIds:ids});setStatus('success');setTimeout(onClose,700)}catch{setStatus('error')}}
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="import-modal" onMouseDown={e=>e.stopPropagation()}><button className="modal-close" onClick={onClose}><X size={19}/></button><div className="espn-mark">E</div><span>CONECTA TU LIGA</span><h2>Importar desde ESPN</h2><p>Sincroniza roster, récord y rival desde una liga pública real.</p><label><span>LEAGUE ID</span><input value={leagueId} onChange={e=>setLeagueId(e.target.value)} placeholder="ID de tu liga"/></label><div className="import-fields"><label><span>TEAM ID</span><input value={teamId} onChange={e=>setTeamId(e.target.value)}/></label><label><span>TEMPORADA</span><select value={season} onChange={e=>setSeason(e.target.value)}><option value="2026">2025–26</option><option value="2025">2024–25</option></select></label></div>{status==='missing'&&<div className="form-message error">Escribe el ID de tu liga.</div>}{status==='error'&&<div className="form-message error">No se pudo leer la liga. Confirma que sea pública y revisa los IDs.</div>}{status==='success'&&<div className="form-message success"><Check size={15}/>Datos reales sincronizados.</div>}<button className="primary import-submit" onClick={importTeam} disabled={status==='loading'}>{status==='loading'?<><RefreshCcw className="spin" size={17}/>Conectando...</>:<>Importar mi equipo <ArrowRight size={17}/></>}</button><small>Las ligas privadas requieren autorización de ESPN mediante servidor.</small></div></div>
+  const [leagueId,setLeagueId]=useState(existing?.leagueId||'')
+  const [teamId,setTeamId]=useState(String(existing?.teamId||1))
+  const [season,setSeason]=useState(String(existing?.season||2026))
+  const [mode,setMode]=useState(existing?.isPrivate?'private':'public')
+  const [swid,setSwid]=useState('')
+  const [espnS2,setEspnS2]=useState('')
+  const [status,setStatus]=useState('idle')
+  const [errorMessage,setErrorMessage]=useState('')
+
+  const importTeam=async()=>{
+    if(!leagueId||!teamId){setStatus('error');setErrorMessage('Escribe el League ID y tu Team ID.');return}
+    if(mode==='private'&&(!swid||!espnS2)){setStatus('error');setErrorMessage('Una liga privada necesita SWID y espn_s2.');return}
+    setStatus('loading');setErrorMessage('')
+    try{
+      const response=await fetch('/api/espn/league',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({leagueId,season,swid:mode==='private'?swid:undefined,espnS2:mode==='private'?espnS2:undefined})})
+      const payload=await response.json()
+      if(!response.ok)throw new Error(payload.error||'No se pudo importar la liga.')
+      const data=payload.data
+      const readIds=t=>t?.roster?.entries?.map(e=>String(e.playerPoolEntry?.player?.id)).filter(Boolean)||[]
+      const readRecord=t=>t?.record?.overall?{wins:t.record.overall.wins||0,losses:t.record.overall.losses||0,ties:t.record.overall.ties||0,rank:t.record.overall.rank||t.currentProjectedRank||null}:null
+      const source=data.teams?.find(t=>String(t.id)===String(teamId))
+      if(!source)throw new Error('El Team ID no existe dentro de esta liga.')
+      const ids=readIds(source)
+      if(!players.some(p=>ids.includes(String(p.id))))throw new Error('El roster no contiene jugadores presentes en el dataset actual.')
+      const period=data.scoringPeriodId||data.status?.currentScoringPeriod
+      const match=data.schedule?.find(game=>(!period||game.matchupPeriodId===period)&&(String(game.home?.teamId)===String(teamId)||String(game.away?.teamId)===String(teamId)))
+      const opponentId=match?(String(match.home?.teamId)===String(teamId)?match.away?.teamId:match.home?.teamId):null
+      const allTeams=(data.teams||[]).map(team=>({id:String(team.id),name:teamName(team),abbrev:team.abbrev||initials(teamName(team)),record:readRecord(team),rosterIds:readIds(team)}))
+      const opponent=allTeams.find(team=>team.id===String(opponentId))||null
+      onImported({league:{leagueId:String(leagueId),teamId:String(teamId),season:Number(season),seasonLabel:`${Number(season)-1}-${String(season).slice(-2)}`,leagueName:data.settings?.name||`Liga ESPN ${leagueId}`,teamName:teamName(source),teamAbbrev:source.abbrev||initials(teamName(source)),leagueSize:allTeams.length,record:readRecord(source),opponent:opponent?{id:opponent.id,name:opponent.name,abbrev:opponent.abbrev,record:opponent.record}:null,opponentRosterIds:opponent?.rosterIds||[],teams:allTeams,isPrivate:mode==='private',scoringPeriodId:period||null,syncedAt:new Date().toISOString()},rosterIds:ids,auth:mode==='private'?{swid,espnS2}:null})
+      setSwid('');setEspnS2('');setStatus('success');setTimeout(onClose,700)
+    }catch(error){setStatus('error');setErrorMessage(error.message)}
+  }
+
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="import-modal private-import" onMouseDown={e=>e.stopPropagation()}><button className="modal-close" onClick={onClose}><X size={19}/></button><div className="espn-mark">E</div><span>CONECTA TU LIGA</span><h2>Importar desde ESPN</h2><p>Importa todos los equipos, rosters, récords y el matchup actual.</p>
+    <div className="league-mode"><button className={mode==='public'?'active':''} onClick={()=>setMode('public')}>Liga pública</button><button className={mode==='private'?'active':''} onClick={()=>setMode('private')}>Liga privada</button></div>
+    <label><span>LEAGUE ID</span><input value={leagueId} onChange={e=>setLeagueId(e.target.value)} placeholder="ID de tu liga" inputMode="numeric"/></label><div className="import-fields"><label><span>TEAM ID</span><input value={teamId} onChange={e=>setTeamId(e.target.value)} inputMode="numeric"/></label><label><span>TEMPORADA</span><select value={season} onChange={e=>setSeason(e.target.value)}><option value="2026">2025–26</option><option value="2025">2024–25</option></select></label></div>
+    {mode==='private'&&<div className="private-fields"><div className="credential-note"><Info size={16}/><p>Copia `SWID` y `espn_s2` desde las cookies de fantasy.espn.com mientras tu sesión esté abierta. Se usan una sola vez y no se guardan.</p></div><label><span>SWID</span><input value={swid} onChange={e=>setSwid(e.target.value)} placeholder="{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}" autoComplete="off"/></label><label><span>ESPN_S2</span><input type="password" value={espnS2} onChange={e=>setEspnS2(e.target.value)} placeholder="Cookie espn_s2" autoComplete="off"/></label></div>}
+    {status==='error'&&<div className="form-message error">{errorMessage}</div>}{status==='success'&&<div className="form-message success"><Check size={15}/>Liga y todos sus equipos sincronizados.</div>}<button className="primary import-submit" onClick={importTeam} disabled={status==='loading'}>{status==='loading'?<><RefreshCcw className="spin" size={17}/>Importando liga...</>:<>Importar todos los equipos <ArrowRight size={17}/></>}</button><small>{mode==='private'?'Las credenciales viajan sólo a tu servidor local y no se almacenan.':'Las ligas públicas no necesitan credenciales.'}</small>
+  </div></div>
 }
 
 function SearchModal({ players, onClose, openPlayer, setPage }) {
@@ -256,11 +408,11 @@ function ProfileModal({ user, setUser, onClose }) {
 
 export default function App() {
   const {players,season,count,source,loading,error}=usePlayerData(); const [page,setPage]=useState('dashboard'); const [collapsed,setCollapsed]=useState(false); const [selected,setSelected]=useState(null); const [showImport,setShowImport]=useState(false); const [showSearch,setShowSearch]=useState(false); const [showNotifications,setShowNotifications]=useState(false); const [showProfile,setShowProfile]=useState(false)
-  const [user,setUser]=useStoredState('baseline-user',{name:'Javier Rivera'}); const [watchlist,setWatchlist]=useStoredState('baseline-watchlist',[]); const [rosterIds,setRosterIds]=useStoredState('baseline-roster',[]); const [league,setLeague]=useStoredState('baseline-league',null); const [watchlistOnly,setWatchlistOnly]=useState(false); const [tradeSeed,setTradeSeed]=useState(null)
+  const [user,setUser]=useStoredState('baseline-user',{name:'Javier Rivera'}); const [watchlist,setWatchlist]=useStoredState('baseline-watchlist',[]); const [rosterIds,setRosterIds]=useStoredState('baseline-roster',[]); const [league,setLeague]=useStoredState('baseline-league',null); const [espnAuth,setEspnAuth]=useState(null); const [watchlistOnly,setWatchlistOnly]=useState(false); const [tradeSeed,setTradeSeed]=useState(null)
   const roster=players.filter(p=>rosterIds.includes(String(p.id))); const opponentRoster=players.filter(p=>league?.opponentRosterIds?.includes(String(p.id)))
   const toggleWatchlist=id=>setWatchlist(list=>list.includes(String(id))?list.filter(item=>item!==String(id)):unique([...list,id])); const toggleRoster=id=>setRosterIds(list=>list.includes(String(id))?list.filter(item=>item!==String(id)):unique([...list,id]))
   const openWatchlist=()=>{setWatchlistOnly(true);setPage('players');setShowNotifications(false)}; const useTrade=id=>{setTradeSeed(String(id));setPage('trade');setSelected(null)}
-  const handleImport=({league:nextLeague,rosterIds:nextRoster})=>{setLeague(nextLeague);setRosterIds(unique(nextRoster))}
+  const handleImport=({league:nextLeague,rosterIds:nextRoster,auth})=>{setLeague(nextLeague);setRosterIds(unique(nextRoster));setEspnAuth(auth||null)}
   useEffect(()=>{const listener=e=>{if(e.ctrlKey&&e.key.toLowerCase()==='k'){e.preventDefault();setShowSearch(true)}};window.addEventListener('keydown',listener);return()=>window.removeEventListener('keydown',listener)},[])
   if(loading)return <div className="app-loading"><RefreshCcw className="spin" size={24}/><strong>Cargando datos reales de ESPN...</strong></div>
   if(error||!players.length)return <div className="app-loading error-screen"><Info size={28}/><strong>No se pudo cargar el dataset NBA.</strong><p>Comprueba que public/data/players.json esté disponible.</p><button className="primary" onClick={()=>window.location.reload()}>Reintentar <RefreshCcw size={15}/></button></div>
@@ -270,7 +422,7 @@ export default function App() {
     {page==='team'&&<TeamPage roster={roster} players={players} league={league} openPlayer={setSelected} onImport={()=>setShowImport(true)} setPage={setPage}/>} 
     {page==='players'&&<PlayersPage players={players} openPlayer={setSelected} watchlist={watchlist} toggleWatchlist={toggleWatchlist} watchlistOnly={watchlistOnly} setWatchlistOnly={setWatchlistOnly}/>} 
     {page==='trade'&&<TradePage players={players} roster={roster} league={league} seedPlayer={tradeSeed} clearSeed={()=>setTradeSeed(null)}/>} 
-    {page==='draft'&&<DraftPage players={players} openPlayer={setSelected}/>} 
+    {page==='draft'&&<DraftPage players={players} openPlayer={setSelected} league={league} espnAuth={espnAuth} onReconnect={()=>setShowImport(true)}/>} 
   </div><footer><span>BASELINE · H2H 8-CAT</span><span>Datos: {source} · {season} · {count} jugadores</span><span>{league?`ESPN · ${timeAgo(league.syncedAt)}`:'Sin liga conectada'}</span></footer></main><nav className="mobile-nav">{NAV.map(({id,label,icon:Icon})=><button className={page===id?'active':''} onClick={()=>setPage(id)} key={id}><Icon size={19}/><span>{label}</span></button>)}</nav>
     {selected&&<PlayerModal player={selected} season={season} onClose={()=>setSelected(null)} toggleWatchlist={toggleWatchlist} saved={watchlist.includes(String(selected.id))} inRoster={rosterIds.includes(String(selected.id))} toggleRoster={toggleRoster} useTrade={useTrade}/>} 
     {showImport&&<ImportModal players={players} existing={league} onClose={()=>setShowImport(false)} onImported={handleImport}/>} 

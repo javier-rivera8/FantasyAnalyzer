@@ -13,6 +13,7 @@ El build de producción se genera con:
 
 ```bash
 npm run build
+npm start
 ```
 
 ## Actualizar datos NBA
@@ -28,9 +29,13 @@ Para otra temporada, ejecuta directamente `node scripts/fetch-players.mjs AÑO_E
 ## Módulos
 
 - Dashboard con récord, proyección semanal, matchup y oportunidades de mercado.
-- Mi equipo con roster importable desde ligas públicas de ESPN.
+- Mi equipo importable desde ligas públicas o privadas de ESPN.
+- Comparación de todos los equipos y rosters de la liga en H2H 8-CAT.
 - Directorio NBA con búsqueda, filtros, ordenamiento y perfiles detallados.
 - Trade Lab con valor, equidad, impacto H2H 8-CAT y escenario de récord.
 - Draft Room con board dinámico para cuatro estrategias de construcción.
+- Draft Live de sólo lectura con polling cada 2.5 segundos, equipo en turno, feed de picks, cola local y recomendaciones 8-CAT recalculadas automáticamente.
 
-La importación directa de ESPN usa el proxy de desarrollo de Vite. Una integración desplegada para ligas privadas requiere un pequeño backend con autorización de ESPN.
+Las ligas privadas usan `SWID` y `espn_s2` únicamente durante la solicitud al servidor local; esas credenciales no se guardan. `npm run dev` activa el endpoint durante desarrollo y `npm start` sirve el build de producción con la misma integración.
+
+Durante un draft live, las selecciones se confirman en ESPN. Baseline funciona como companion: lee el estado, elimina jugadores elegidos y actualiza el board sin realizar picks en nombre del usuario.
