@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Activity, ArrowLeftRight, ArrowRight, ArrowUpRight, Bell, Check, ChevronDown,
+  Activity, ArrowLeftRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Check, ChevronDown,
   ChevronLeft, ChevronRight, Crown, Gauge, Info, LayoutDashboard, MoreHorizontal,
   Plus, RefreshCcw, Search, SlidersHorizontal, Sparkles, Star, Target, Trophy,
   Upload, UserRound, Users, X, Zap,
@@ -11,6 +11,7 @@ const NAV = [
   { id: 'team', label: 'Mi equipo', icon: Users },
   { id: 'players', label: 'Jugadores', icon: Search },
   { id: 'trade', label: 'Trade Lab', icon: ArrowLeftRight, badge: '8 CAT' },
+  { id: 'prediction', label: 'Predicción Liga', icon: BarChart3, badge: 'SIM' },
   { id: 'draft', label: 'Draft Room', icon: Trophy },
 ]
 
@@ -232,7 +233,7 @@ function Dashboard({ players, roster, opponentRoster, league, watchlist, setPage
       <div className="metric-card accent"><div className="metric-head"><span>WATCHLIST</span><Star size={18}/></div><strong>{watchlist.length}</strong><p>Jugadores guardados</p><button onClick={openWatchlist}>Abrir watchlist <ArrowRight size={15}/></button></div>
     </section>
     <section className="dashboard-columns">
-      <div className="surface matchup-card"><div className="card-title-row"><div><span>{league?.scoringPeriodId?`PERIODO ${league.scoringPeriodId}`:'MATCHUP ESPN'}</span><h3>Tu matchup</h3></div><span className="static-pill">8 CAT</span></div>
+      <div className="surface matchup-card"><div className="card-title-row"><div><span>{league?.matchupPeriodId?`MATCHUP ${league.matchupPeriodId}`:'MATCHUP ESPN'}</span><h3>Tu matchup</h3></div><span className="static-pill">8 CAT</span></div>
         {!matchup?<EmptyState icon={Activity} title="No hay matchup conectado" copy="Importa tu liga pública de ESPN para comparar ambos rosters." action={onImport} actionLabel="Importar ESPN"/>:<><div className="matchup-teams"><div className="matchup-team"><div className="team-avatar orange">{initials(league.teamName)}</div><div><strong>{league.teamName}</strong><span>{record?`${record.wins}—${record.losses}`:'Sin récord'}</span></div></div><div className="score-prediction"><small>PROYECTADO</small><strong>{matchup.wins} <em>—</em> {matchup.losses}</strong></div><div className="matchup-team opponent"><div><strong>{league.opponent.name}</strong><span>{league.opponent.record?`${league.opponent.record.wins}—${league.opponent.record.losses}`:'Rival ESPN'}</span></div><div className="team-avatar black">{initials(league.opponent.name)}</div></div></div><div className="category-list">{matchup.categories.map(cat=><div className="category-row" key={cat.key}><b className={cat.win?'winner':''}>{fmt(cat.mine)}{cat.key.includes('Pct')?'%':''}</b><div><span>{cat.label}</span><div className="duel-bar"><i style={{width:`${cat.mine/(cat.mine+cat.theirs||1)*100}%`}}/><em/></div></div><b className={!cat.win?'winner':''}>{fmt(cat.theirs)}{cat.key.includes('Pct')?'%':''}</b></div>)}</div><button className="full-text-button" onClick={()=>setPage('team')}>Ver mi equipo <ArrowRight size={15}/></button></>}
       </div>
       <div className="surface roster-snapshot"><div className="card-title-row"><div><span>MI EQUIPO</span><h3>Roster actual</h3></div><button onClick={()=>setPage('team')}>Ver todos</button></div>{!roster.length?<EmptyState icon={Users} title="Roster vacío" copy="Importa ESPN o añade jugadores desde el directorio." action={()=>setPage('players')} actionLabel="Buscar jugadores"/>:<div className="roster-list">{roster.slice(0,6).map((player,index)=><button className="roster-row" key={player.id} onClick={()=>openPlayer(player)}><span className="rank">{String(index+1).padStart(2,'0')}</span><PlayerPhoto player={player}/><div className="player-name"><strong>{player.name}</strong><span>{player.team} · {player.position}</span></div><div className="player-form"><span>8-CAT</span><strong>{player.value}</strong></div><ChevronRight size={16}/></button>)}</div>}</div>
@@ -268,6 +269,118 @@ function LeagueComparison({ league, players }) {
     </div>
     <div className="surface league-table-wrap"><table className="league-table"><thead><tr><th>#</th><th>EQUIPO</th><th>RÉCORD</th><th>JUG.</th><th>VALUE</th>{CATEGORY_META.map(([,label])=><th key={label}>{label}</th>)}<th/></tr></thead><tbody>{teams.map((team,index)=><tr className={team.id===String(league.teamId)?'my-team':''} key={team.id}><td>{index+1}</td><td><div className="league-team-name"><span>{team.abbrev}</span><strong>{team.name}</strong></div></td><td>{team.record?`${team.record.wins}—${team.record.losses}`:'—'}</td><td>{team.roster.length}</td><td><b>{team.value}</b></td>{CATEGORY_META.map(([key])=><td key={key}>{team.projection?fmt(team.projection[key]):'—'}{team.projection&&key.includes('Pct')?'%':''}</td>)}<td><button onClick={()=>{setLeftId(String(league.teamId));setRightId(team.id)}} disabled={team.id===String(league.teamId)}>Comparar</button></td></tr>)}</tbody></table></div>
   </section>
+}
+
+const SIMULATION_COUNTING_KEYS=['pts','threeMade','ast','reb','stl','blk']
+
+function hashSimulationSeed(value){let hash=2166136261;for(const char of String(value)){hash^=char.charCodeAt(0);hash=Math.imul(hash,16777619)}return hash>>>0}
+function simulationRandom(seed){let state=hashSimulationSeed(seed)||1;return()=>{state+=0x6D2B79F5;let value=state;value=Math.imul(value^value>>>15,value|1);value^=value+Math.imul(value^value>>>7,value|61);return((value^value>>>14)>>>0)/4294967296}}
+function simulationNoise(random){return (random()+random()+random()+random()+random()+random()-3)*1.2}
+function simulationRosterIds(team){return (team.initialRosterIds?.length?team.initialRosterIds:team.rosterIds)||[]}
+
+function projectSimulationRoster(rosterIds,playerById,totalPeriods){
+  const roster=rosterIds.map(id=>playerById.get(String(id))).filter(Boolean)
+  const stats={}
+  SIMULATION_COUNTING_KEYS.forEach(key=>{stats[key]=roster.reduce((sum,player)=>{const expectedGames=Math.min(4.5,Math.max(.15,Number(player.gp||0)/Math.max(1,totalPeriods)));return sum+Number(player[key]||0)*expectedGames},0)})
+  for(const key of ['fgPct','ftPct']){
+    const weighted=roster.reduce((sum,player)=>{const expectedGames=Math.min(4.5,Math.max(.15,Number(player.gp||0)/Math.max(1,totalPeriods)));return sum+Number(player[key]||0)*Math.max(1,Number(player.min||0))*expectedGames},0)
+    const weight=roster.reduce((sum,player)=>{const expectedGames=Math.min(4.5,Math.max(.15,Number(player.gp||0)/Math.max(1,totalPeriods)));return sum+Math.max(1,Number(player.min||0))*expectedGames},0)
+    stats[key]=weight?weighted/weight:0
+  }
+  return {stats,players:roster.length,value:roster.reduce((sum,player)=>sum+Number(player.value||0),0)}
+}
+
+function simulateLeagueDuel(left,right,random){
+  let leftCategories=0;let rightCategories=0
+  for(const [key] of CATEGORY_META){
+    const leftBase=Number(left.stats[key]||0);const rightBase=Number(right.stats[key]||0);const percentage=key==='fgPct'||key==='ftPct'
+    const leftResult=percentage?leftBase+simulationNoise(random)*1.15:Math.max(0,leftBase*(1+simulationNoise(random)*.075))
+    const rightResult=percentage?rightBase+simulationNoise(random)*1.15:Math.max(0,rightBase*(1+simulationNoise(random)*.075))
+    if(Math.abs(leftResult-rightResult)<.0001)continue
+    if(leftResult>rightResult)leftCategories++;else rightCategories++
+  }
+  return {leftCategories,rightCategories,winner:leftCategories===rightCategories?null:leftCategories>rightCategories?'left':'right'}
+}
+
+function simulateLeagueSeason({teams,schedule,players,runs,regularPeriods,playoffTeamCount,seed}){
+  const playerById=new Map(players.map(player=>[String(player.id),player]))
+  const totalPeriods=Math.max(1,regularPeriods+Math.ceil(Math.log2(Math.max(2,playoffTeamCount))))
+  const projections=new Map(teams.map(team=>[String(team.id),projectSimulationRoster(simulationRosterIds(team),playerById,totalPeriods)]))
+  const validIds=new Set(teams.map(team=>String(team.id)))
+  const games=(schedule||[]).filter(game=>Number(game.matchupPeriodId)<=regularPeriods&&validIds.has(String(game.homeTeamId))&&validIds.has(String(game.awayTeamId))&&String(game.homeTeamId)!==String(game.awayTeamId))
+  const totals=new Map(teams.map(team=>[String(team.id),{wins:0,losses:0,ties:0,rank:0,playoffs:0,finals:0,titles:0}]))
+  const safeRuns=Math.max(1,Number(runs)||1)
+
+  for(let run=0;run<safeRuns;run++){
+    const random=simulationRandom(`${seed}-${run}`)
+    const records=new Map(teams.map(team=>[String(team.id),{wins:0,losses:0,ties:0,categoriesFor:0,categoriesAgainst:0}]))
+    for(const game of games){
+      const homeId=String(game.homeTeamId);const awayId=String(game.awayTeamId);const result=simulateLeagueDuel(projections.get(homeId),projections.get(awayId),random);const home=records.get(homeId);const away=records.get(awayId)
+      home.categoriesFor+=result.leftCategories;home.categoriesAgainst+=result.rightCategories;away.categoriesFor+=result.rightCategories;away.categoriesAgainst+=result.leftCategories
+      if(!result.winner){home.ties++;away.ties++}else if(result.winner==='left'){home.wins++;away.losses++}else{away.wins++;home.losses++}
+    }
+    const ranking=[...teams].sort((a,b)=>{const ar=records.get(String(a.id));const br=records.get(String(b.id));const aGames=ar.wins+ar.losses+ar.ties||1;const bGames=br.wins+br.losses+br.ties||1;const aPct=(ar.wins+ar.ties*.5)/aGames;const bPct=(br.wins+br.ties*.5)/bGames;return bPct-aPct||(br.categoriesFor-br.categoriesAgainst)-(ar.categoriesFor-ar.categoriesAgainst)||(projections.get(String(b.id))?.value||0)-(projections.get(String(a.id))?.value||0)||String(a.id).localeCompare(String(b.id))})
+    ranking.forEach((team,index)=>{const id=String(team.id);const record=records.get(id);const total=totals.get(id);total.wins+=record.wins;total.losses+=record.losses;total.ties+=record.ties;total.rank+=index+1;if(index<playoffTeamCount)total.playoffs++})
+
+    let remaining=ranking.slice(0,Math.min(playoffTeamCount,ranking.length)).map((team,index)=>({team,seed:index+1}))
+    while(remaining.length>1){
+      const bracketSize=2**Math.ceil(Math.log2(remaining.length));const byes=bracketSize-remaining.length;const next=remaining.slice(0,byes);const playing=remaining.slice(byes)
+      if(remaining.length===2)remaining.forEach(({team})=>totals.get(String(team.id)).finals++)
+      for(let index=0;index<playing.length/2;index++){
+        const higher=playing[index];const lower=playing[playing.length-1-index];const result=simulateLeagueDuel(projections.get(String(higher.team.id)),projections.get(String(lower.team.id)),random)
+        next.push(result.winner==='right'?lower:higher)
+      }
+      remaining=next.sort((a,b)=>a.seed-b.seed)
+    }
+    if(remaining[0])totals.get(String(remaining[0].team.id)).titles++
+  }
+
+  const standings=teams.map(team=>{const id=String(team.id);const total=totals.get(id);const projection=projections.get(id);return {...team,id,projection,expectedWins:total.wins/safeRuns,expectedLosses:total.losses/safeRuns,expectedTies:total.ties/safeRuns,averageRank:total.rank/safeRuns,playoffOdds:total.playoffs/safeRuns*100,finalsOdds:total.finals/safeRuns*100,titleOdds:total.titles/safeRuns*100}}).sort((a,b)=>a.averageRank-b.averageRank)
+  return {standings,games:games.length,periods:regularPeriods,runs:safeRuns,champion:standings.reduce((best,team)=>!best||team.titleOdds>best.titleOdds?team:best,null)}
+}
+
+function LeaguePrediction({league,players,onImport}){
+  if(!league)return <div className="page prediction-page"><SectionHeading eyebrow="PREDICCIÓN DE LIGA" title="Simula la temporada completa." description="Importa tu liga ESPN para reconstruir el draft, el calendario y todos los rosters."/><div className="surface prediction-empty"><EmptyState icon={BarChart3} title="Falta conectar la liga" copy="La simulación necesita los equipos, picks y matchups de ESPN." action={onImport} actionLabel="Importar ESPN"/></div></div>
+  if(!league.schedule?.length)return <div className="page prediction-page"><SectionHeading eyebrow="PREDICCIÓN DE LIGA" title="Sincroniza el calendario." description="La liga guardada es de una importación anterior y todavía no contiene draft ni matchups para simular."/><div className="surface prediction-empty"><EmptyState icon={RefreshCcw} title="Actualización necesaria" copy="Vuelve a importar la misma liga una vez para activar esta sección." action={onImport} actionLabel="Sincronizar liga"/></div></div>
+  return <LeaguePredictionSimulator league={league} players={players}/>
+}
+
+function LeaguePredictionSimulator({league,players}){
+  const [runs,setRuns]=useState(500)
+  const [teamAId,setTeamAId]=useState(String(league?.teamId||''))
+  const [teamBId,setTeamBId]=useState(String(league?.opponent?.id||league?.teams?.find(team=>String(team.id)!==String(league?.teamId))?.id||''))
+  const [playerAId,setPlayerAId]=useState('')
+  const [playerBId,setPlayerBId]=useState('')
+  const [trade,setTrade]=useState(null)
+  const teams=league?.teams||[]
+  const playerById=useMemo(()=>new Map(players.map(player=>[String(player.id),player])),[players])
+  const rosterPlayers=useCallback(teamId=>{const team=teams.find(item=>String(item.id)===String(teamId));return simulationRosterIds(team||{}).map(id=>playerById.get(String(id))).filter(Boolean).sort((a,b)=>b.value-a.value)},[teams,playerById])
+  const teamAPlayers=useMemo(()=>rosterPlayers(teamAId),[rosterPlayers,teamAId]);const teamBPlayers=useMemo(()=>rosterPlayers(teamBId),[rosterPlayers,teamBId])
+  useEffect(()=>{setPlayerAId(String(teamAPlayers[0]?.id||''))},[teamAId,teamAPlayers])
+  useEffect(()=>{setPlayerBId(String(teamBPlayers[0]?.id||''))},[teamBId,teamBPlayers])
+  useEffect(()=>{if(teamAId===teamBId)setTeamBId(String(teams.find(team=>String(team.id)!==teamAId)?.id||''));setTrade(null)},[teamAId,teamBId,teams])
+
+  const regularPeriods=Number(league.regularSeasonPeriods||Math.max(...league.schedule.map(game=>Number(game.matchupPeriodId)||0)))
+  const playoffCount=Math.min(teams.length,Number(league.playoffTeamCount||Math.min(8,teams.length)))
+  const baseline=useMemo(()=>simulateLeagueSeason({teams,schedule:league.schedule,players,runs,regularPeriods,playoffTeamCount:playoffCount,seed:`${league.leagueId}-baseline`}),[teams,league.schedule,players,runs,regularPeriods,playoffCount,league.leagueId])
+  const scenarioTeams=useMemo(()=>{
+    if(!trade)return teams
+    return teams.map(team=>{const ids=[...simulationRosterIds(team)];if(String(team.id)===trade.teamAId)return {...team,initialRosterIds:unique([...ids.filter(id=>String(id)!==trade.playerAId),trade.playerBId])};if(String(team.id)===trade.teamBId)return {...team,initialRosterIds:unique([...ids.filter(id=>String(id)!==trade.playerBId),trade.playerAId])};return {...team,initialRosterIds:ids}})
+  },[teams,trade])
+  const result=useMemo(()=>trade?simulateLeagueSeason({teams:scenarioTeams,schedule:league.schedule,players,runs,regularPeriods,playoffTeamCount:playoffCount,seed:`${league.leagueId}-baseline`}):baseline,[trade,scenarioTeams,league.schedule,players,runs,regularPeriods,playoffCount,league.leagueId,baseline])
+  const baselineById=new Map(baseline.standings.map(team=>[team.id,team]));const myProjection=result.standings.find(team=>team.id===String(league.teamId));const periodSummary=Array.from({length:regularPeriods},(_,index)=>{const period=index+1;return {period,games:league.schedule.filter(game=>Number(game.matchupPeriodId)===period).length}})
+  const selectedPlayerA=playerById.get(trade?.playerAId||playerAId);const selectedPlayerB=playerById.get(trade?.playerBId||playerBId)
+  const applyTrade=()=>{if(teamAId&&teamBId&&playerAId&&playerBId)setTrade({teamAId,teamBId,playerAId,playerBId})}
+
+  return <div className="page prediction-page">
+    <section className="prediction-hero"><div><span className="eyebrow"><i/> MODELO MONTE CARLO · H2H 8-CAT</span><h1>Predice toda<br/>la liga.</h1><p>Parte del draft inicial, usa todos los matchups de temporada regular y proyecta cada jugador con sus estadísticas ESPN. Los resultados reales de la temporada no entran en el cálculo.</p></div><div className="prediction-controls"><label>SIMULACIONES<select value={runs} onChange={event=>setRuns(Number(event.target.value))}><option value="100">100 · Rápida</option><option value="500">500 · Equilibrada</option><option value="1000">1,000 · Precisa</option></select></label><div><span>ESCENARIO ACTIVO</span><strong>{trade?'Trade hipotético':'Draft inicial'}</strong><small>{baseline.games} matchups · {regularPeriods} periodos</small></div></div></section>
+    <section className="prediction-metrics"><div className="surface"><span>FAVORITO AL TÍTULO</span><strong>{result.champion?.name||'—'}</strong><small>{fmt(result.champion?.titleOdds)}% campeón</small></div><div className="surface"><span>TU PROYECCIÓN</span><strong>#{myProjection?fmt(myProjection.averageRank,1):'—'}</strong><small>{myProjection?`${fmt(myProjection.expectedWins)}—${fmt(myProjection.expectedLosses)}—${fmt(myProjection.expectedTies)} · ${fmt(myProjection.playoffOdds)}% playoffs`:'Sin equipo'}</small></div><div className="surface"><span>ROSTERS DE ORIGEN</span><strong>{teams.filter(team=>team.initialRosterIds?.length).length||teams.length}</strong><small>Picks del draft ESPN</small></div><div className="surface"><span>VOLUMEN DEL MODELO</span><strong>{(result.runs*result.games).toLocaleString()}</strong><small>matchups simulados</small></div></section>
+    <section className="prediction-grid"><div className="surface prediction-standings"><div className="card-title-row"><div><span>{trade?'CLASIFICACIÓN CON TRADE':'CLASIFICACIÓN PROYECTADA'}</span><h3>Tabla final promedio</h3></div>{trade&&<button onClick={()=>setTrade(null)}><RefreshCcw size={14}/> Quitar trade</button>}</div><div className="prediction-table-wrap"><table><thead><tr><th>#</th><th>EQUIPO</th><th>W</th><th>L</th><th>T</th><th>PLAYOFFS</th><th>FINAL</th><th>CAMPEÓN</th>{trade&&<th>Δ TÍTULO</th>}</tr></thead><tbody>{result.standings.map((team,index)=>{const previous=baselineById.get(team.id);const delta=team.titleOdds-(previous?.titleOdds||0);return <tr className={team.id===String(league.teamId)?'my-team':''} key={team.id}><td>{index+1}</td><td><div className="prediction-team"><span>{team.abbrev}</span><div><strong>{team.name}</strong><small>{team.projection.players} jugadores · VALUE {team.projection.value}</small></div></div></td><td>{fmt(team.expectedWins)}</td><td>{fmt(team.expectedLosses)}</td><td>{fmt(team.expectedTies)}</td><td><b>{fmt(team.playoffOdds)}%</b></td><td>{fmt(team.finalsOdds)}%</td><td><strong>{fmt(team.titleOdds)}%</strong></td>{trade&&<td className={delta>=0?'positive':'negative'}>{delta>0?'+':''}{fmt(delta)}%</td>}</tr>})}</tbody></table></div></div>
+      <aside className="surface prediction-trade"><div className="card-title-row"><div><span>TRADE SIMULATOR</span><h3>Cambia el destino de la liga</h3></div><ArrowLeftRight size={18}/></div><p>Intercambia una pieza de cada roster inicial y vuelve a jugar la temporada completa.</p><label>EQUIPO A<select value={teamAId} onChange={event=>setTeamAId(event.target.value)}>{teams.map(team=><option value={team.id} key={team.id}>{team.name}</option>)}</select></label><label>ENTREGA<select value={playerAId} onChange={event=>setPlayerAId(event.target.value)}>{teamAPlayers.map(player=><option value={player.id} key={player.id}>{player.name} · {player.value}</option>)}</select></label><div className="trade-swap-mark"><ArrowLeftRight size={18}/></div><label>EQUIPO B<select value={teamBId} onChange={event=>setTeamBId(event.target.value)}>{teams.filter(team=>String(team.id)!==teamAId).map(team=><option value={team.id} key={team.id}>{team.name}</option>)}</select></label><label>ENTREGA<select value={playerBId} onChange={event=>setPlayerBId(event.target.value)}>{teamBPlayers.map(player=><option value={player.id} key={player.id}>{player.name} · {player.value}</option>)}</select></label><button className="primary" onClick={applyTrade} disabled={!playerAId||!playerBId}><BarChart3 size={16}/> Simular este trade</button>{trade&&<div className="trade-simulation-result"><span>RESPUESTA DEL MODELO</span><strong>{selectedPlayerA?.name||'Jugador'} ↔ {selectedPlayerB?.name||'Jugador'}</strong>{[trade.teamAId,trade.teamBId].map(id=>{const before=baselineById.get(id);const after=result.standings.find(team=>team.id===id);return <div key={id}><b>{after?.name}</b><em className={(after?.titleOdds||0)>=(before?.titleOdds||0)?'positive':'negative'}>{(after?.titleOdds||0)-(before?.titleOdds||0)>=0?'+':''}{fmt((after?.titleOdds||0)-(before?.titleOdds||0))}% título</em></div>})}</div>}</aside>
+    </section>
+    <section className="surface prediction-calendar"><div className="card-title-row"><div><span>CALENDARIO COMPLETO</span><h3>Todos los matchups desde el inicio</h3></div><span className="static-pill">{baseline.games} JUEGOS</span></div><div className="period-track">{periodSummary.map(({period,games})=><div key={period}><span>{String(period).padStart(2,'0')}</span><i/><strong>{games}</strong><small>matchups</small></div>)}<div className="playoff-period"><Trophy size={16}/><strong>TOP {playoffCount}</strong><small>playoffs simulados</small></div></div></section>
+    <div className="prediction-method"><Info size={15}/><p><b>Cómo leerlo:</b> las probabilidades salen de {runs.toLocaleString()} temporadas independientes. Se usan los rosters del draft, disponibilidad derivada de GP, estadísticas por partido y variación semanal por categoría. No usa ganadores ni récords reales, así que evita mirar el resultado final de la temporada.</p></div>
+  </div>
 }
 
 function TeamPage({ roster, players, league, openPlayer, onImport, setPage }) {
@@ -358,6 +471,22 @@ function ImportModal({ onClose, players, onImported, existing }) {
   const [status,setStatus]=useState('idle')
   const [errorMessage,setErrorMessage]=useState('')
 
+  const readIds=team=>(team?.roster?.entries||[]).map(entry=>String(entry?.playerPoolEntry?.player?.id||entry?.playerPoolEntry?.id||entry?.playerId||'')).filter(Boolean)
+  const readRecord=team=>{
+    const overall=team?.record?.overall
+    if(!overall)return null
+    const rank=[team.rankCalculatedFinal,team.rankFinal,team.playoffSeed,overall.rank,team.currentProjectedRank].map(Number).find(value=>value>0)||null
+    return {wins:overall.wins||0,losses:overall.losses||0,ties:overall.ties||0,rank}
+  }
+  const resolveMatchupPeriod=data=>{
+    const direct=Number(data.status?.currentMatchupPeriod||data.status?.requestedMatchupPeriodId)
+    if(direct>0)return direct
+    const scoringPeriod=Number(data.scoringPeriodId||data.status?.latestScoringPeriod)
+    const periods=data.settings?.scheduleSettings?.matchupPeriods||{}
+    const mapped=Object.entries(periods).find(([,scoringPeriods])=>(scoringPeriods||[]).some(value=>Number(value)===scoringPeriod))
+    return mapped?Number(mapped[0]):null
+  }
+
   const importTeam=async()=>{
     if(!leagueId||!teamId){setStatus('error');setErrorMessage('Escribe el League ID y tu Team ID.');return}
     if(mode==='private'&&(!swid||!espnS2)){setStatus('error');setErrorMessage('Una liga privada necesita SWID y espn_s2.');return}
@@ -367,18 +496,20 @@ function ImportModal({ onClose, players, onImported, existing }) {
       const payload=await response.json()
       if(!response.ok)throw new Error(payload.error||'No se pudo importar la liga.')
       const data=payload.data
-      const readIds=t=>t?.roster?.entries?.map(e=>String(e.playerPoolEntry?.player?.id)).filter(Boolean)||[]
-      const readRecord=t=>t?.record?.overall?{wins:t.record.overall.wins||0,losses:t.record.overall.losses||0,ties:t.record.overall.ties||0,rank:t.record.overall.rank||t.currentProjectedRank||null}:null
       const source=data.teams?.find(t=>String(t.id)===String(teamId))
       if(!source)throw new Error('El Team ID no existe dentro de esta liga.')
       const ids=readIds(source)
       if(!players.some(p=>ids.includes(String(p.id))))throw new Error('El roster no contiene jugadores presentes en el dataset actual.')
-      const period=data.scoringPeriodId||data.status?.currentScoringPeriod
-      const match=data.schedule?.find(game=>(!period||game.matchupPeriodId===period)&&(String(game.home?.teamId)===String(teamId)||String(game.away?.teamId)===String(teamId)))
+      const matchupPeriod=resolveMatchupPeriod(data)
+      const teamGames=(data.schedule||[]).filter(game=>String(game.home?.teamId)===String(teamId)||String(game.away?.teamId)===String(teamId))
+      const match=teamGames.find(game=>Number(game.matchupPeriodId)===matchupPeriod)||teamGames.sort((a,b)=>Number(b.matchupPeriodId)-Number(a.matchupPeriodId))[0]
       const opponentId=match?(String(match.home?.teamId)===String(teamId)?match.away?.teamId:match.home?.teamId):null
-      const allTeams=(data.teams||[]).map(team=>({id:String(team.id),name:teamName(team),abbrev:team.abbrev||initials(teamName(team)),record:readRecord(team),rosterIds:readIds(team)}))
+      const draftRosters=new Map()
+      for(const pick of data.draftDetail?.picks||[]){const draftTeamId=String(pick.teamId||'');const playerId=String(pick.playerId||'');if(!draftTeamId||!playerId)continue;draftRosters.set(draftTeamId,[...(draftRosters.get(draftTeamId)||[]),playerId])}
+      const allTeams=(data.teams||[]).map(team=>{const id=String(team.id);const rosterIds=readIds(team);return {id,name:teamName(team),abbrev:team.abbrev||initials(teamName(team)),record:readRecord(team),rosterIds,initialRosterIds:unique(draftRosters.get(id)?.length?draftRosters.get(id):rosterIds)}})
       const opponent=allTeams.find(team=>team.id===String(opponentId))||null
-      onImported({league:{leagueId:String(leagueId),teamId:String(teamId),season:Number(season),seasonLabel:`${Number(season)-1}-${String(season).slice(-2)}`,leagueName:data.settings?.name||`Liga ESPN ${leagueId}`,teamName:teamName(source),teamAbbrev:source.abbrev||initials(teamName(source)),leagueSize:allTeams.length,record:readRecord(source),opponent:opponent?{id:opponent.id,name:opponent.name,abbrev:opponent.abbrev,record:opponent.record}:null,opponentRosterIds:opponent?.rosterIds||[],teams:allTeams,isPrivate:mode==='private',scoringPeriodId:period||null,syncedAt:new Date().toISOString()},rosterIds:ids,auth:mode==='private'?{swid,espnS2}:null})
+      const schedule=(data.schedule||[]).map(game=>({id:String(game.id),matchupPeriodId:Number(game.matchupPeriodId),homeTeamId:game.home?.teamId==null?null:String(game.home.teamId),awayTeamId:game.away?.teamId==null?null:String(game.away.teamId),playoffTierType:game.playoffTierType||'NONE'})).filter(game=>game.matchupPeriodId&&game.homeTeamId&&game.awayTeamId)
+      onImported({league:{leagueId:String(leagueId),teamId:String(teamId),season:Number(season),seasonLabel:`${Number(season)-1}-${String(season).slice(-2)}`,leagueName:data.settings?.name||`Liga ESPN ${leagueId}`,teamName:teamName(source),teamAbbrev:source.abbrev||initials(teamName(source)),leagueSize:allTeams.length,record:readRecord(source),opponent:opponent?{id:opponent.id,name:opponent.name,abbrev:opponent.abbrev,record:opponent.record}:null,opponentRosterIds:opponent?.rosterIds||[],teams:allTeams,schedule,regularSeasonPeriods:Number(data.settings?.scheduleSettings?.matchupPeriodCount||0)||null,playoffTeamCount:Number(data.settings?.scheduleSettings?.playoffTeamCount||0)||null,draftPickCount:Number(data.draftDetail?.picks?.length||0),isPrivate:mode==='private',scoringPeriodId:data.scoringPeriodId||data.status?.latestScoringPeriod||null,matchupPeriodId:matchupPeriod||match?.matchupPeriodId||null,syncedAt:new Date().toISOString()},rosterIds:ids,auth:mode==='private'?{swid,espnS2}:null})
       setSwid('');setEspnS2('');setStatus('success');setTimeout(onClose,700)
     }catch(error){setStatus('error');setErrorMessage(error.message)}
   }
@@ -416,12 +547,13 @@ export default function App() {
   useEffect(()=>{const listener=e=>{if(e.ctrlKey&&e.key.toLowerCase()==='k'){e.preventDefault();setShowSearch(true)}};window.addEventListener('keydown',listener);return()=>window.removeEventListener('keydown',listener)},[])
   if(loading)return <div className="app-loading"><RefreshCcw className="spin" size={24}/><strong>Cargando datos reales de ESPN...</strong></div>
   if(error||!players.length)return <div className="app-loading error-screen"><Info size={28}/><strong>No se pudo cargar el dataset NBA.</strong><p>Comprueba que public/data/players.json esté disponible.</p><button className="primary" onClick={()=>window.location.reload()}>Reintentar <RefreshCcw size={15}/></button></div>
-  const titles={dashboard:'Inicio',team:'Mi equipo',players:'Jugadores',trade:'Trade Lab',draft:'Draft Room'}
+  const titles={dashboard:'Inicio',team:'Mi equipo',players:'Jugadores',trade:'Trade Lab',prediction:'Predicción Liga',draft:'Draft Room'}
   return <div className="app-shell"><Sidebar page={page} setPage={setPage} collapsed={collapsed} setCollapsed={setCollapsed} user={user} onProfile={()=>setShowProfile(true)}/><main className="main-shell"><Header title={titles[page]} count={page==='players'?count:null} onImport={()=>setShowImport(true)} onSearch={()=>setShowSearch(true)} onNotifications={()=>setShowNotifications(true)} notificationCount={(league?0:1)+watchlist.length}/><div className="content-shell">
     {page==='dashboard'&&<Dashboard players={players} roster={roster} opponentRoster={opponentRoster} league={league} watchlist={watchlist} setPage={setPage} openPlayer={setSelected} toggleWatchlist={toggleWatchlist} onImport={()=>setShowImport(true)} openWatchlist={openWatchlist}/>} 
     {page==='team'&&<TeamPage roster={roster} players={players} league={league} openPlayer={setSelected} onImport={()=>setShowImport(true)} setPage={setPage}/>} 
     {page==='players'&&<PlayersPage players={players} openPlayer={setSelected} watchlist={watchlist} toggleWatchlist={toggleWatchlist} watchlistOnly={watchlistOnly} setWatchlistOnly={setWatchlistOnly}/>} 
     {page==='trade'&&<TradePage players={players} roster={roster} league={league} seedPlayer={tradeSeed} clearSeed={()=>setTradeSeed(null)}/>} 
+    {page==='prediction'&&<LeaguePrediction league={league} players={players} onImport={()=>setShowImport(true)}/>}
     {page==='draft'&&<DraftPage players={players} openPlayer={setSelected} league={league} espnAuth={espnAuth} onReconnect={()=>setShowImport(true)}/>} 
   </div><footer><span>BASELINE · H2H 8-CAT</span><span>Datos: {source} · {season} · {count} jugadores</span><span>{league?`ESPN · ${timeAgo(league.syncedAt)}`:'Sin liga conectada'}</span></footer></main><nav className="mobile-nav">{NAV.map(({id,label,icon:Icon})=><button className={page===id?'active':''} onClick={()=>setPage(id)} key={id}><Icon size={19}/><span>{label}</span></button>)}</nav>
     {selected&&<PlayerModal player={selected} season={season} onClose={()=>setSelected(null)} toggleWatchlist={toggleWatchlist} saved={watchlist.includes(String(selected.id))} inRoster={rosterIds.includes(String(selected.id))} toggleRoster={toggleRoster} useTrade={useTrade}/>} 

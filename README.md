@@ -33,6 +33,7 @@ Para otra temporada, ejecuta directamente `node scripts/fetch-players.mjs AÑO_E
 - Comparación de todos los equipos y rosters de la liga en H2H 8-CAT.
 - Directorio NBA con búsqueda, filtros, ordenamiento y perfiles detallados.
 - Trade Lab con valor, equidad, impacto H2H 8-CAT y escenario de récord.
+- Predicción de liga Monte Carlo desde los rosters del draft, calendario completo, probabilidades de playoffs/título y trades hipotéticos entre equipos.
 - Draft Room con board dinámico para cuatro estrategias de construcción.
 - Draft Live de sólo lectura con polling cada 2.5 segundos, equipo en turno, feed de picks, cola local y recomendaciones 8-CAT recalculadas automáticamente.
 
