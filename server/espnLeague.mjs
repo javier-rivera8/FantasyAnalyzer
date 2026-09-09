@@ -1,5 +1,12 @@
 const ESPN_API_ORIGIN = 'https://lm-api-reads.fantasy.espn.com'
 const REQUEST_TIMEOUT_MS = 30_000
+const MAX_BODY_SIZE = 1024 * 1024
+const ALLOWED_ORIGINS = new Set(
+  (process.env.ALLOWED_ORIGINS || 'https://fantasy-analyzer-jr-2026.web.app,https://fantasy-analyzer-jr-2026.firebaseapp.com')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+)
 
 class EspnRequestError extends Error {
   constructor(message, status = 502) {
@@ -16,11 +23,30 @@ function sendJson(res, status, payload) {
 }
 
 async function readJson(req) {
+  try {
+    const parsedBody = req.body
+    if (parsedBody !== undefined) {
+      if (Buffer.isBuffer(parsedBody)) {
+        if (parsedBody.length > MAX_BODY_SIZE) throw new Error('PAYLOAD_TOO_LARGE')
+        return JSON.parse(parsedBody.toString('utf8') || '{}')
+      }
+      if (typeof parsedBody === 'string') {
+        if (Buffer.byteLength(parsedBody) > MAX_BODY_SIZE) throw new Error('PAYLOAD_TOO_LARGE')
+        return JSON.parse(parsedBody || '{}')
+      }
+      if (Buffer.byteLength(JSON.stringify(parsedBody || {})) > MAX_BODY_SIZE) throw new Error('PAYLOAD_TOO_LARGE')
+      return parsedBody || {}
+    }
+  } catch (error) {
+    if (error?.message === 'PAYLOAD_TOO_LARGE') throw error
+    throw new Error('INVALID_JSON')
+  }
+
   const chunks = []
   let size = 0
   for await (const chunk of req) {
     size += chunk.length
-    if (size > 1024 * 1024) throw new Error('PAYLOAD_TOO_LARGE')
+    if (size > MAX_BODY_SIZE) throw new Error('PAYLOAD_TOO_LARGE')
     chunks.push(chunk)
   }
   try {
@@ -28,6 +54,17 @@ async function readJson(req) {
   } catch {
     throw new Error('INVALID_JSON')
   }
+}
+
+function setCorsHeaders(req, res) {
+  const origin = req.headers?.origin
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('access-control-allow-origin', origin)
+    res.setHeader('vary', 'Origin')
+  }
+  res.setHeader('access-control-allow-methods', 'POST, OPTIONS')
+  res.setHeader('access-control-allow-headers', 'content-type')
+  res.setHeader('access-control-max-age', '86400')
 }
 
 function validateRequest(body) {
@@ -138,6 +175,11 @@ async function ensureRosterData(body, data) {
 }
 
 async function handleEspn(req, res, { views, label, ensureRosters = false }) {
+  setCorsHeaders(req, res)
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204
+    return res.end()
+  }
   if (req.method !== 'POST') {
     res.setHeader('allow', 'POST')
     return sendJson(res, 405, { error: `Usa POST para consultar ${label}.` })

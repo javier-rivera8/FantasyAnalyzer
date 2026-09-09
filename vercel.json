@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/espn/league.js": {
+      "maxDuration": 60
+    },
+    "api/espn/draft.js": {
+      "maxDuration": 60
+    }
+  }
+}

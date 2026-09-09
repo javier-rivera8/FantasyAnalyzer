@@ -6,6 +6,8 @@ import {
   Upload, UserRound, Users, X, Zap,
 } from 'lucide-react'
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+
 const NAV = [
   { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard },
   { id: 'team', label: 'Mi equipo', icon: Users },
@@ -152,7 +154,7 @@ function useLiveDraft({ enabled, league, auth, players }) {
     if(league.isPrivate&&!auth?.swid){setError('Vuelve a autenticar la liga privada para iniciar el seguimiento live.');return}
     inFlight.current=true;setRefreshing(true)
     try{
-      const response=await fetch('/api/espn/draft',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({leagueId:league.leagueId,season:league.season,swid:auth?.swid,espnS2:auth?.espnS2})})
+      const response=await fetch(`${API_BASE_URL}/api/espn/draft`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({leagueId:league.leagueId,season:league.season,swid:auth?.swid,espnS2:auth?.espnS2})})
       const payload=await response.json()
       if(!response.ok)throw new Error(payload.error||'No se pudo leer el draft de ESPN.')
       setDraft(normalizeDraftState(payload.data,league,players));setError('');setLastUpdated(new Date().toISOString())
@@ -492,7 +494,7 @@ function ImportModal({ onClose, players, onImported, existing }) {
     if(mode==='private'&&(!swid||!espnS2)){setStatus('error');setErrorMessage('Una liga privada necesita SWID y espn_s2.');return}
     setStatus('loading');setErrorMessage('')
     try{
-      const response=await fetch('/api/espn/league',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({leagueId,season,swid:mode==='private'?swid:undefined,espnS2:mode==='private'?espnS2:undefined})})
+      const response=await fetch(`${API_BASE_URL}/api/espn/league`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({leagueId,season,swid:mode==='private'?swid:undefined,espnS2:mode==='private'?espnS2:undefined})})
       const payload=await response.json()
       if(!response.ok)throw new Error(payload.error||'No se pudo importar la liga.')
       const data=payload.data
