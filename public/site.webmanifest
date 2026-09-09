@@ -1,0 +1,17 @@
+{
+  "name": "Baseline — NBA Fantasy Analyzer",
+  "short_name": "Baseline",
+  "description": "NBA Fantasy Analyzer para ligas H2H 8-CAT.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f4ef",
+  "theme_color": "#171022",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
