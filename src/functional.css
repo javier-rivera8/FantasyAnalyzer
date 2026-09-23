@@ -78,6 +78,71 @@
   .modal-actions button { min-height: 40px; height: auto; }
 }
 
+/* Search keeps its controls visible while results scroll above the keyboard. */
+.command-menu {
+  display: flex;
+  flex-direction: column;
+  max-height: 80dvh;
+  min-height: 0;
+}
+.command-search-bar { display: flex; align-items: center; gap: 8px; flex-shrink: 0; border-bottom: 1px solid var(--line); }
+.command-search-bar label { flex: 1; min-width: 0; border-bottom: 0; }
+.command-search-bar label input { min-width: 0; width: 100%; }
+.command-search-bar label > svg { flex-shrink: 0; }
+.command-close { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; border: 0; border-radius: 6px; background: #f1edf7; }
+.command-close:hover { background: #e8ddff; }
+.command-label, .command-footer { flex-shrink: 0; }
+.command-results { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.command-result > div:nth-child(2) { min-width: 0; }
+.command-result > svg, .command-result > b { flex-shrink: 0; }
+.command-result strong { overflow-wrap: anywhere; }
+.command-empty { padding: 24px 12px; font-size: 14px; line-height: 1.5; color: var(--muted); }
+
+@media (max-width: 800px) {
+  .topbar { gap: 8px; }
+  .topbar .global-search,
+  .topbar .icon-button,
+  .topbar .import-button {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    padding: 0;
+    border-radius: 6px;
+  }
+  .topbar .global-search { margin-left: auto; margin-right: 0; color: var(--ink); }
+  .topbar .global-search svg,
+  .topbar .icon-button svg,
+  .topbar .import-button svg { width: 20px; height: 20px; }
+  .search-backdrop {
+    top: var(--search-top, 0px);
+    bottom: auto;
+    height: var(--search-height, 100dvh);
+    padding: 0;
+    place-items: stretch;
+  }
+  .command-menu {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    padding: env(safe-area-inset-top, 0px) max(12px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(12px, env(safe-area-inset-left, 0px));
+    box-shadow: none;
+  }
+  .command-search-bar { gap: 4px; min-height: 68px; }
+  .command-search-bar label { height: 60px; padding: 0 4px; gap: 8px; }
+  .command-search-bar label input { font-size: 16px; height: 48px; background: transparent; }
+  .command-search-bar > kbd { display: none; }
+  .command-label { padding: 18px 4px 10px; font-size: 11px; letter-spacing: .1em; }
+  .command-results { flex: 1; }
+  .command-result { min-height: 76px; height: auto; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--line); }
+  .command-result .player-photo { width: 48px; height: 48px; }
+  .command-result strong { font-size: 16px; line-height: 1.3; }
+  .command-result span { font-size: 13px; margin-top: 4px; }
+  .command-result > b { font-size: 18px; }
+  .command-footer { min-height: 64px; padding: 8px 4px; gap: 12px; }
+  .command-footer button { min-height: 44px; font-size: 14px; align-items: center; gap: 8px; }
+  .command-footer > span { font-size: 12px; }
+}
+
 /* Estados y controles funcionales. */
 .user-mini {
   width: 100%;

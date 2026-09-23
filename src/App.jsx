@@ -195,7 +195,7 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, user, onProfile }) {
 function Header({ title, count, onImport, onSearch, onNotifications, notificationCount }) {
   return <header className="topbar">
     <div className="mobile-logo"><Logo compact/></div><div className="topbar-title"><h2>{title}</h2>{count!=null&&<span>{count} jugadores</span>}</div>
-    <button className="global-search" onClick={onSearch}><Search size={18}/><span>Buscar jugador, equipo...</span></button>
+    <button className="global-search" onClick={onSearch} aria-label="Buscar jugadores"><Search size={18}/><span>Buscar jugador, equipo...</span></button>
     <button className="icon-button notification" onClick={onNotifications} aria-label="Notificaciones"><Bell size={19}/>{notificationCount>0&&<i/>}</button>
     <button className="import-button" onClick={onImport}><Upload size={17}/> Importar ESPN</button>
   </header>
@@ -662,8 +662,42 @@ function ImportModal({ onClose, players, onImported, existing }) {
 
 function SearchModal({ players, onClose, openPlayer, setPage }) {
   const [query,setQuery]=useState(''); const results=players.filter(p=>!query||`${p.name} ${p.team}`.toLowerCase().includes(query.toLowerCase())).slice(0,8)
+  const backdropRef=useRef(null)
+  useEffect(()=>{
+    const previousOverflow=document.body.style.overflow
+    document.body.style.overflow='hidden'
+    const viewport=window.visualViewport
+    const resize=()=>{
+      backdropRef.current?.style.setProperty('--search-height',`${viewport?.height||window.innerHeight}px`)
+      backdropRef.current?.style.setProperty('--search-top',`${viewport?.offsetTop||0}px`)
+    }
+    resize()
+    viewport?.addEventListener('resize',resize)
+    viewport?.addEventListener('scroll',resize)
+    window.addEventListener('resize',resize)
+    return()=>{
+      document.body.style.overflow=previousOverflow
+      viewport?.removeEventListener('resize',resize)
+      viewport?.removeEventListener('scroll',resize)
+      window.removeEventListener('resize',resize)
+    }
+  },[])
   useEffect(()=>{const fn=e=>e.key==='Escape'&&onClose();window.addEventListener('keydown',fn);return()=>window.removeEventListener('keydown',fn)},[onClose])
-  return <div className="search-backdrop" onMouseDown={onClose}><div className="command-menu" onMouseDown={e=>e.stopPropagation()}><label><Search size={20}/><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Busca cualquier jugador..."/><kbd>ESC</kbd></label><span className="command-label">{query?'RESULTADOS':'MEJORES VALORES 8-CAT'}</span>{results.map(p=><button key={p.id} onClick={()=>{openPlayer(p);onClose()}}><PlayerPhoto player={p}/><div><strong>{p.name}</strong><span>{p.team} · {p.position}</span></div><b>{p.value}</b><ChevronRight size={15}/></button>)}<div className="command-footer"><button onClick={()=>{setPage('players');onClose()}}>Ver todos <ArrowRight size={14}/></button><span>{results.length} resultados</span></div></div></div>
+  return <div className="search-backdrop" ref={backdropRef} onMouseDown={onClose}>
+    <div className="command-menu" role="dialog" aria-modal="true" aria-label="Buscar jugadores" onMouseDown={e=>e.stopPropagation()}>
+      <div className="command-search-bar">
+        <label><Search size={20}/><input autoFocus type="search" aria-label="Nombre o equipo del jugador" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Busca un jugador o equipo..." autoComplete="off" autoCorrect="off" spellCheck={false}/></label>
+        <kbd>ESC</kbd>
+        <button className="command-close" onClick={onClose} aria-label="Cerrar buscador"><X size={22}/></button>
+      </div>
+      <span className="command-label">{query?'RESULTADOS':'MEJORES VALORES 8-CAT'}</span>
+      <div className="command-results">
+        {results.map(p=><button className="command-result" key={p.id} onClick={()=>{openPlayer(p);onClose()}}><PlayerPhoto player={p}/><div><strong>{p.name}</strong><span>{p.team} · {p.position}</span></div><b>{p.value}</b><ChevronRight size={15}/></button>)}
+        {!results.length&&<p className="command-empty" role="status">No encontramos jugadores. Prueba con otro nombre o equipo.</p>}
+      </div>
+      <div className="command-footer"><button onClick={()=>{setPage('players');onClose()}}>Ver todos <ArrowRight size={14}/></button><span aria-live="polite">{results.length} resultados</span></div>
+    </div>
+  </div>
 }
 
 function NotificationPanel({ league, watchlist, season, count, onClose, onImport, openWatchlist }) {
