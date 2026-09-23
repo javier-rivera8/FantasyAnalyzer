@@ -84,9 +84,61 @@ function requestHeaders(body) {
   const headers = {
     accept: 'application/json, text/plain, */*',
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/152.0.0.0 Safari/537.36',
+    'x-fantasy-source': 'kona',
   }
   if (body.swid && body.espnS2) headers.cookie = `SWID=${String(body.swid).trim()}; espn_s2=${String(body.espnS2).trim()}`
   return headers
+}
+
+async function espnDraftSecurity(body) {
+  const { leagueId, season, teamId, memberId } = body
+  const url = new URL(
+    `/apis/v3/games/fba/seasons/${season}/segments/0/leagues/${leagueId}/teams/${teamId}/draftSecurity`,
+    ESPN_API_ORIGIN,
+  )
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    const response = await fetch(url, {
+      headers: requestHeaders(body),
+      redirect: 'follow',
+      signal: controller.signal,
+    })
+    const text = await response.text()
+    let payload = text
+    try { payload = JSON.parse(text) } catch { /* The endpoint may return a plain token. */ }
+    if (!response.ok) {
+      throw new EspnRequestError(
+        response.status === 401 || response.status === 403
+          ? 'ESPN rechazó la sesión. Actualiza SWID y espn_s2.'
+          : 'ESPN no permitió abrir el canal live de esta sala mock.',
+        response.status === 401 || response.status === 403 ? 401 : 502,
+      )
+    }
+    const securityPart = String(payload || '').trim()
+    if (!securityPart) throw new EspnRequestError('ESPN no devolvió el token live del mock.', 502)
+    const draftToken = `fba:${leagueId}:${teamId}:${memberId}:${securityPart}`
+    const query = new URLSearchParams({
+      1: 'fba',
+      2: String(leagueId),
+      3: String(teamId),
+      4: String(memberId),
+      5: draftToken,
+      6: 'false',
+      7: 'false',
+      8: 'KONA',
+      nocache: String(Math.floor(Math.random() * 1_000_000)),
+    })
+    return `wss://fantasydraft.espn.com/game-fba/league-${leagueId}/JOIN?${query}`
+  } catch (error) {
+    if (error instanceof EspnRequestError) throw error
+    throw new EspnRequestError(
+      error?.name === 'AbortError' ? 'ESPN tardó demasiado en abrir el canal live.' : 'No se pudo abrir el canal live de ESPN.',
+      error?.name === 'AbortError' ? 504 : 502,
+    )
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 function requestAttempts(body, views, scoringPeriodId, matchupPeriodId) {
@@ -213,4 +265,44 @@ export function handleEspnDraft(req, res) {
     views: ['mDraftDetail', 'mTeam', 'mSettings', 'mStatus', 'mRoster'],
     label: 'el estado del draft',
   })
+}
+
+export async function handleEspnMockDraft(req, res) {
+  setCorsHeaders(req, res)
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204
+    return res.end()
+  }
+  if (req.method !== 'POST') {
+    res.setHeader('allow', 'POST')
+    return sendJson(res, 405, { error: 'Usa POST para conectar una sala mock.' })
+  }
+
+  try {
+    const body = await readJson(req)
+    const validationError = validateRequest(body)
+    if (validationError) return sendJson(res, 400, { error: validationError })
+    if (!body.swid || !body.espnS2) return sendJson(res, 400, { error: 'El seguimiento live del mock requiere SWID y espn_s2.' })
+    if (!/^\d+$/.test(String(body.teamId || ''))) return sendJson(res, 400, { error: 'El Team ID del mock no es válido.' })
+    if (!body.memberId || /[\r\n]/.test(String(body.memberId)) || String(body.memberId).length > 160) {
+      return sendJson(res, 400, { error: 'No se pudo identificar el Member ID de ESPN.' })
+    }
+
+    const [result, socketUrl] = await Promise.all([
+      espnGet(body, { views: ['draftInit', 'mSettings', 'mTeam', 'mStatus'] }),
+      espnDraftSecurity(body),
+    ])
+    const data = result.data
+    if (!Array.isArray(data.teams)) throw new EspnRequestError('ESPN no devolvió una sala mock válida.', 502)
+    const subtype = String(data.settings?.draftSettings?.leagueSubType || '').toUpperCase()
+    if (!subtype.includes('MOCK')) throw new EspnRequestError('Ese ID no corresponde a una sala mock de ESPN.', 400)
+    return sendJson(res, 200, {
+      data,
+      meta: { endpointUsed: result.endpointUsed, transport: 'websocket', socketUrl },
+    })
+  } catch (error) {
+    if (error?.message === 'PAYLOAD_TOO_LARGE') return sendJson(res, 413, { error: 'Solicitud demasiado grande.' })
+    if (error?.message === 'INVALID_JSON') return sendJson(res, 400, { error: 'La solicitud no contiene JSON válido.' })
+    return sendJson(res, error?.status || 500, { error: error?.message || 'No se pudo conectar el mock de ESPN.' })
+  }
 }

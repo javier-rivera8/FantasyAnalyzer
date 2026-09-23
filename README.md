@@ -36,6 +36,8 @@ Para otra temporada, ejecuta directamente `node scripts/fetch-players.mjs AÑO_E
 - Predicción de liga Monte Carlo desde los rosters del draft, calendario completo, probabilidades de playoffs/título y trades hipotéticos entre equipos.
 - Draft Room con board dinámico para cuatro estrategias de construcción.
 - Draft Live de sólo lectura con polling cada 2.5 segundos, equipo en turno, feed de picks, cola local y recomendaciones 8-CAT recalculadas automáticamente.
+- Mock Draft local de 8, 10 o 12 equipos para probar el flujo live, simular picks rivales y seleccionar jugadores sin credenciales ni cambios en ESPN.
+- Conexión de sólo lectura a salas Mock Draft de ESPN mediante la URL o el League ID temporal del waiting room, con detección automática del equipo y polling de picks.
 
 Las ligas privadas usan `SWID` y `espn_s2` únicamente durante la solicitud al servidor local; esas credenciales no se guardan. `npm run dev` activa el endpoint durante desarrollo y `npm start` sirve el build de producción con la misma integración.
 

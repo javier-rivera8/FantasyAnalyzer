@@ -3,7 +3,7 @@ import { stat } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { handleEspnDraft, handleEspnLeague } from './server/espnLeague.mjs'
+import { handleEspnDraft, handleEspnLeague, handleEspnMockDraft } from './server/espnLeague.mjs'
 
 const root = resolve(fileURLToPath(new URL('.', import.meta.url)), 'dist')
 const port = Number(process.env.PORT || 4173)
@@ -12,6 +12,7 @@ const mime = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; chars
 createServer(async (req, res) => {
   if (req.url?.split('?')[0] === '/api/espn/league') return handleEspnLeague(req, res)
   if (req.url?.split('?')[0] === '/api/espn/draft') return handleEspnDraft(req, res)
+  if (req.url?.split('?')[0] === '/api/espn/mock-draft') return handleEspnMockDraft(req, res)
   const pathname = decodeURIComponent((req.url || '/').split('?')[0])
   const requested = normalize(pathname).replace(/^(\.\.[/\\])+/, '')
   let file = join(root, requested === '/' ? 'index.html' : requested)
