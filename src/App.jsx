@@ -175,7 +175,7 @@ function useLiveDraft({ enabled, league, auth, players }) {
 function PlayerPhoto({ player, size = 'md' }) {
   const [failed, setFailed] = useState(false)
   if (!player) return null
-  return <div className={`player-photo ${size}`} style={{ '--team': TEAM_COLORS[player.team] || '#777' }}>
+  return <div className={`player-photo player-photo--${size}`} style={{ '--team': TEAM_COLORS[player.team] || '#777' }}>
     {!failed && player.headshot ? <img src={player.headshot} alt={player.name} onError={() => setFailed(true)} /> : <span>{initials(player.name)}</span>}
   </div>
 }

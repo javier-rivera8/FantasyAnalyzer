@@ -1,3 +1,83 @@
+/* Keep the portrait in its own grid cell, including on narrow screens. */
+.player-modal {
+  width: min(760px, 100%);
+  max-height: min(92vh, calc(100dvh - 40px));
+}
+
+.player-modal-hero {
+  position: relative;
+  height: auto;
+  min-height: 240px;
+  grid-template-columns: minmax(0, 1fr) 196px auto;
+  gap: 20px;
+  padding: 48px 28px 0;
+  align-items: center;
+}
+
+.player-modal-copy {
+  min-width: 0;
+  padding-bottom: 28px;
+}
+
+.player-modal-copy h2 {
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.player-modal-hero > .player-photo {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  width: 196px;
+  height: 196px;
+  margin: 0;
+  opacity: 1;
+}
+
+.player-modal-hero > .player-photo img {
+  object-fit: contain;
+  object-position: bottom;
+}
+
+.player-modal-hero .modal-rating {
+  align-self: center;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 800px) {
+  .player-modal-hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px;
+    padding: 48px 24px 0;
+  }
+
+  .player-modal-copy {
+    grid-column: 1 / -1;
+    padding-bottom: 0;
+  }
+
+  .player-modal-copy h2 { max-width: none; }
+
+  .player-modal-hero > .player-photo {
+    grid-row: 2;
+    width: 170px;
+    height: 170px;
+  }
+
+  .player-modal-hero .modal-rating {
+    grid-row: 2;
+    padding-left: 16px;
+    margin-bottom: 16px;
+  }
+}
+
+@media (max-width: 520px) {
+  .player-modal-hero { padding: 48px 20px 0; }
+  .player-modal-hero > .player-photo { width: 140px; height: 140px; }
+  .modal-actions { flex-wrap: wrap; }
+  .modal-actions button { min-height: 40px; height: auto; }
+}
+
 /* Estados y controles funcionales. */
 .user-mini {
   width: 100%;
