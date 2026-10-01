@@ -34,11 +34,10 @@ Para otra temporada, ejecuta directamente `node scripts/fetch-players.mjs AÑO_E
 - Directorio NBA con búsqueda, filtros, ordenamiento y perfiles detallados.
 - Trade Lab con valor, equidad, impacto H2H 8-CAT y escenario de récord.
 - Predicción de liga Monte Carlo desde los rosters del draft, calendario completo, probabilidades de playoffs/título y trades hipotéticos entre equipos.
-- Draft Room con board dinámico para cuatro estrategias de construcción.
-- Draft Live de sólo lectura con polling cada 2.5 segundos, equipo en turno, feed de picks, cola local y recomendaciones 8-CAT recalculadas automáticamente.
-- Mock Draft local de 8, 10 o 12 equipos para probar el flujo live, simular picks rivales y seleccionar jugadores sin credenciales ni cambios en ESPN.
-- Conexión de sólo lectura a salas Mock Draft de ESPN mediante la URL o el League ID temporal del waiting room, con detección automática del equipo y polling de picks.
+- Draft Room manual que funciona sin conectar ESPN: orden serpiente configurable, nombres y posiciones de todos los equipos, registro de picks para cualquier equipo, historial, deshacer y guardado local.
+- Board dinámico con estadísticas 8-CAT por partido de 2025–26 y estimaciones locales para 2026–27, búsqueda y filtros. Las estimaciones usan regresión por posición, partidos jugados y edad; no son proyecciones oficiales de ESPN.
+- Predicción de posiciones recalculada tras cada pick mediante 200 simulaciones. El modelo completa las plazas vacantes con jugadores disponibles y compara todos los equipos en H2H 8-CAT.
 
 Las ligas privadas usan `SWID` y `espn_s2` únicamente durante la solicitud al servidor local; esas credenciales no se guardan. `npm run dev` activa el endpoint durante desarrollo y `npm start` sirve el build de producción con la misma integración.
 
-Durante un draft live, las selecciones se confirman en ESPN. Baseline funciona como companion: lee el estado, elimina jugadores elegidos y actualiza el board sin realizar picks en nombre del usuario.
+Durante el draft, las selecciones se hacen en ESPN y se registran manualmente en Baseline. El draft room no consulta ni modifica el estado del draft de ESPN.

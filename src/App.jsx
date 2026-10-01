@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity, ArrowLeftRight, ArrowRight, ArrowUpRight, BarChart3, Bell, Check, ChevronDown,
-  ChevronLeft, ChevronRight, Crown, Gauge, Info, LayoutDashboard, MoreHorizontal,
-  Plus, RefreshCcw, Search, SlidersHorizontal, Sparkles, Star, Target, Trophy,
-  Upload, UserRound, Users, X, Zap,
+  ChevronLeft, ChevronRight, Crown, Info, LayoutDashboard, MoreHorizontal,
+  Plus, RefreshCcw, Search, SlidersHorizontal, Sparkles, Star, Trophy,
+  Upload, UserRound, Users, X,
 } from 'lucide-react'
+import DraftRoom from './DraftRoom.jsx'
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 
@@ -20,13 +21,6 @@ const NAV = [
 const CATEGORY_META = [
   ['pts', 'PTS'], ['ftPct', 'FT%'], ['threeMade', '3PTM'], ['fgPct', 'FG%'],
   ['ast', 'AST'], ['reb', 'REB'], ['stl', 'STL'], ['blk', 'BLK'],
-]
-
-const STRATEGIES = [
-  { id: 'balanced', name: 'Balance total', kicker: 'Recomendado', copy: 'Valor sólido en las ocho categorías.', icon: Target },
-  { id: 'punt-ft', name: 'Punt FT%', kicker: 'Big men', copy: 'Prioriza REB, BLK, FG% y volumen interior.', icon: Gauge },
-  { id: 'small-ball', name: 'Small ball', kicker: 'Guard-heavy', copy: 'Maximiza 3PTM, AST, STL y FT%.', icon: Zap },
-  { id: 'punt-ast', name: 'Punt AST', kicker: 'Eficiencia', copy: 'Prioriza porcentajes, REB y BLK.', icon: Activity },
 ]
 
 const TEAM_COLORS = {
@@ -102,74 +96,6 @@ function timeAgo(iso) {
   if (minutes < 60) return `Hace ${minutes} min`
   const hours = Math.round(minutes / 60)
   return hours < 24 ? `Hace ${hours} h` : `Hace ${Math.round(hours / 24)} d`
-}
-
-function normalizeDraftState(data, league, players) {
-  const detail=data.draftDetail||{}
-  const rawPicks=Array.isArray(detail.picks)?detail.picks:Array.isArray(detail.pickHistory)?detail.pickHistory:[]
-  const pickSlots=rawPicks.map((pick,index)=>{
-    const playerId=String(pick.playerId||pick.player?.id||pick.athleteId||'')
-    const teamId=String(pick.teamId||pick.nominatingTeamId||pick.team?.id||'')
-    return {
-      id:String(pick.id||`${teamId}-${playerId}-${index}`), playerId, teamId,
-      overall:Number(pick.overallPickNumber||pick.overall||index+1),
-      round:Number(pick.roundId||pick.round||Math.floor(index/Math.max(1,data.teams?.length||league?.leagueSize||1))+1),
-      roundPick:Number(pick.roundPickNumber||pick.roundPick||index%Math.max(1,data.teams?.length||league?.leagueSize||1)+1),
-      bidAmount:pick.bidAmount??null,
-      player:players.find(player=>String(player.id)===playerId)||null,
-    }
-  }).sort((a,b)=>a.overall-b.overall)
-  const picks=pickSlots.filter(pick=>Number(pick.playerId)>0)
-  const nextSlot=pickSlots.find(pick=>Number(pick.playerId)<=0)||null
-  const teams=(data.teams||league?.teams||[]).map(team=>({id:String(team.id),name:teamName(team),abbrev:team.abbrev||initials(teamName(team))}))
-  const draftSettings=data.settings?.draftSettings||{}
-  const rawOrder=detail.pickOrder||draftSettings.pickOrder||draftSettings.order||[]
-  const order=(Array.isArray(rawOrder)?rawOrder:[]).map(item=>String(typeof item==='object'?(item.teamId||item.id):item)).filter(Boolean)
-  const teamCount=Math.max(1,order.length||teams.length||league?.leagueSize||1)
-  const nextOverall=Number(nextSlot?.overall||picks.length+1)
-  const currentRound=Number(nextSlot?.round||detail.round||detail.currentRound||Math.floor((nextOverall-1)/teamCount)+1)
-  const position=(nextOverall-1)%teamCount
-  const snakeIndex=currentRound%2===0?teamCount-1-position:position
-  const inferredTeamId=order.length?order[snakeIndex]||null:null
-  const currentTeamId=String(detail.currentTeamId||detail.onClockTeamId||detail.currentPick?.teamId||nextSlot?.teamId||inferredTeamId||'')
-  const completed=Boolean(detail.drafted||detail.complete||detail.completed||(pickSlots.length&&!nextSlot))
-  const inProgress=Boolean(detail.inProgress??(!completed&&picks.length>0))
-  const currentTeam=teams.find(team=>team.id===currentTeamId)||league?.teams?.find(team=>String(team.id)===currentTeamId)||null
-  const scheduledRounds=pickSlots.reduce((maximum,pick)=>Math.max(maximum,Number(pick.round)||0),0)
-  return {
-    picks, teams, order, completed, inProgress,
-    ready:Boolean(detail.ready||detail.draftReady||data.status?.isActive),
-    currentRound, nextOverall, currentTeamId, currentTeam,
-    secondsPerPick:Number(detail.secondsPerPick||draftSettings.timePerSelection||0),
-    totalRounds:Number(detail.rounds||draftSettings.rounds||scheduledRounds||0),
-    rawStatus:Object.keys(detail).length?'available':'waiting',
-  }
-}
-
-function useLiveDraft({ enabled, league, auth, players }) {
-  const [draft,setDraft]=useState(null)
-  const [error,setError]=useState('')
-  const [refreshing,setRefreshing]=useState(false)
-  const [lastUpdated,setLastUpdated]=useState(null)
-  const inFlight=useRef(false)
-  const refresh=useCallback(async()=>{
-    if(!league||inFlight.current)return
-    if(league.isPrivate&&!auth?.swid){setError('Vuelve a autenticar la liga privada para iniciar el seguimiento live.');return}
-    inFlight.current=true;setRefreshing(true)
-    try{
-      const response=await fetch(`${API_BASE_URL}/api/espn/draft`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({leagueId:league.leagueId,season:league.season,swid:auth?.swid,espnS2:auth?.espnS2})})
-      const payload=await response.json()
-      if(!response.ok)throw new Error(payload.error||'No se pudo leer el draft de ESPN.')
-      setDraft(normalizeDraftState(payload.data,league,players));setError('');setLastUpdated(new Date().toISOString())
-    }catch(fetchError){setError(fetchError.message)}finally{inFlight.current=false;setRefreshing(false)}
-  },[league,auth?.swid,auth?.espnS2,players])
-  useEffect(()=>{
-    if(!enabled||!league)return
-    refresh()
-    const interval=setInterval(refresh,2500)
-    return()=>clearInterval(interval)
-  },[enabled,league,refresh])
-  return { draft,error,refreshing,lastUpdated,refresh }
 }
 
 function PlayerPhoto({ player, size = 'md' }) {
@@ -418,182 +344,6 @@ function TradePage({ players, roster, league, seedPlayer, clearSeed }) {
   </div>
 }
 
-function strategyScore(player,strategy){const base=player.value;if(strategy==='punt-ft')return base+player.reb*1.2+player.blk*4+player.fgPct*.12-player.ftPct*.05;if(strategy==='small-ball')return base+player.ast*1.4+player.stl*3+player.threeMade*3+player.ftPct*.08;if(strategy==='punt-ast')return base+player.reb*.8+player.blk*3+player.fgPct*.1-player.ast*.25;return base}
-
-const MOCK_DRAFT_ROUNDS = 13
-
-function mockDraftCursor(draft,picks){
-  const teamCount=draft.order.length
-  const totalPicks=teamCount*draft.totalRounds
-  const completed=picks.length>=totalPicks
-  const nextOverall=picks.length+1
-  const currentRound=Math.min(draft.totalRounds,Math.floor(picks.length/teamCount)+1)
-  const position=picks.length%teamCount
-  const teamIndex=currentRound%2===0?teamCount-1-position:position
-  const currentTeamId=completed?'':draft.order[teamIndex]
-  return {...draft,picks,completed,inProgress:!completed,currentRound,nextOverall,currentTeamId,currentTeam:draft.teams.find(team=>team.id===currentTeamId)||null}
-}
-
-function createMockDraft(teamCount,slot,teamName){
-  const order=Array.from({length:teamCount},(_,index)=>`mock-${index+1}`)
-  const teams=order.map((id,index)=>({id,name:index+1===slot?(teamName||'Tu equipo'):`Equipo simulado ${index+1}`,abbrev:index+1===slot?'TÚ':`E${index+1}`}))
-  return mockDraftCursor({picks:[],teams,order,totalRounds:MOCK_DRAFT_ROUNDS,secondsPerPick:90,ready:true,rawStatus:'simulation'},[])
-}
-
-function addMockDraftPick(draft,player){
-  if(!draft||draft.completed||!player)return draft
-  const teamCount=draft.order.length
-  const position=draft.picks.length%teamCount
-  const pick={id:`mock-pick-${draft.nextOverall}-${player.id}`,playerId:String(player.id),teamId:draft.currentTeamId,overall:draft.nextOverall,round:draft.currentRound,roundPick:position+1,bidAmount:null,player}
-  return mockDraftCursor(draft,[...draft.picks,pick])
-}
-
-function parseEspnLeagueId(value){
-  const input=String(value||'').trim()
-  if(/^\d+$/.test(input))return input
-  try{return new URL(input).searchParams.get('leagueId')||''}catch{return input.match(/[?&]leagueId=(\d+)/i)?.[1]||''}
-}
-
-function parseEspnTeamId(value){
-  const input=String(value||'').trim()
-  try{return new URL(input).searchParams.get('teamId')||''}catch{return input.match(/[?&]teamId=(\d+)/i)?.[1]||''}
-}
-
-function ownerKey(value){return String(value||'').trim().replace(/[{}]/g,'').toLowerCase()}
-
-function EspnMockModal({ existingAuth, onClose, onConnected }){
-  const [room,setRoom]=useState('')
-  const [teamId,setTeamId]=useState('')
-  const [season,setSeason]=useState('2027')
-  const [swid,setSwid]=useState(existingAuth?.swid||'')
-  const [espnS2,setEspnS2]=useState(existingAuth?.espnS2||'')
-  const [status,setStatus]=useState('idle')
-  const [errorMessage,setErrorMessage]=useState('')
-  const connect=async()=>{
-    const leagueId=parseEspnLeagueId(room)
-    const requestedTeamId=teamId||parseEspnTeamId(room)
-    if(!leagueId){setStatus('error');setErrorMessage('Pega la URL de waitingroom/draft de ESPN o escribe el League ID temporal.');return}
-    if((swid&&!espnS2)||(!swid&&espnS2)){setStatus('error');setErrorMessage('Para usar tu sesión de ESPN se necesitan SWID y espn_s2.');return}
-    if(!requestedTeamId&&!swid){setStatus('error');setErrorMessage('Escribe tu Team ID o añade las cookies para detectarlo automáticamente.');return}
-    setStatus('loading');setErrorMessage('')
-    try{
-      const auth=swid&&espnS2?{swid,espnS2}:null
-      const response=await fetch(`${API_BASE_URL}/api/espn/draft`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({leagueId,season,swid:auth?.swid,espnS2:auth?.espnS2})})
-      const payload=await response.json()
-      if(!response.ok)throw new Error(payload.error||'No se pudo leer la sala mock de ESPN.')
-      const data=payload.data
-      const subtype=String(data.settings?.draftSettings?.leagueSubType||'').toUpperCase()
-      if(!subtype.includes('MOCK'))throw new Error('Ese ID pertenece a una liga normal, no a una sala mock de ESPN.')
-      const wantedOwner=ownerKey(swid)
-      const source=requestedTeamId
-        ? data.teams?.find(team=>String(team.id)===String(requestedTeamId))
-        : data.teams?.find(team=>[team.primaryOwner,...(team.owners||[])].some(owner=>ownerKey(owner)===wantedOwner))
-      if(!source)throw new Error('No pude identificar tu equipo en esa sala. Introduce el Team ID que aparece en el draft de ESPN.')
-      const teams=(data.teams||[]).map(team=>({id:String(team.id),name:teamName(team),abbrev:team.abbrev||initials(teamName(team))}))
-      onConnected({league:{leagueId:String(leagueId),teamId:String(source.id),season:Number(season),seasonLabel:`${Number(season)-1}-${String(season).slice(-2)}`,leagueName:data.settings?.name||`Mock ESPN ${leagueId}`,teamName:teamName(source),teamAbbrev:source.abbrev||initials(teamName(source)),leagueSize:teams.length,teams,isPrivate:Boolean(auth),isMock:true,syncedAt:new Date().toISOString()},auth})
-      setStatus('success')
-    }catch(error){setStatus('error');setErrorMessage(error.message)}
-  }
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="import-modal private-import mock-connect-modal" onMouseDown={event=>event.stopPropagation()}><button className="modal-close" onClick={onClose}><X size={19}/></button><div className="espn-mark">E</div><span>DRAFT ROOM · ESPN MOCK</span><h2>Conectar sala mock</h2><p>Entra primero al waiting room de ESPN y pega aquí su URL. Baseline seguirá sus picks en tiempo real.</p>
-    <label><span>URL O LEAGUE ID DEL MOCK</span><input value={room} onChange={event=>setRoom(event.target.value)} placeholder="https://fantasy.espn.com/basketball/waitingroom?leagueId=..." autoFocus/></label><div className="import-fields"><label><span>TEAM ID · OPCIONAL</span><input value={teamId} onChange={event=>setTeamId(event.target.value)} placeholder="Detección automática" inputMode="numeric"/></label><label><span>TEMPORADA</span><select value={season} onChange={event=>setSeason(event.target.value)}><option value="2027">2026–27</option><option value="2026">2025–26</option></select></label></div>
-    <div className="private-fields"><div className="credential-note"><Info size={16}/><p>Si ya importaste tu liga privada, reutilizamos esa sesión. Si no, copia SWID y espn_s2 desde las cookies de fantasy.espn.com.</p></div><label><span>SWID</span><input value={swid} onChange={event=>setSwid(event.target.value)} placeholder="{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}" autoComplete="off"/></label><label><span>ESPN_S2</span><input type="password" value={espnS2} onChange={event=>setEspnS2(event.target.value)} placeholder="Cookie espn_s2" autoComplete="off"/></label></div>
-    {status==='error'&&<div className="form-message error">{errorMessage}</div>}{status==='success'&&<div className="form-message success"><Check size={15}/>Sala mock conectada.</div>}<button className="primary import-submit" onClick={connect} disabled={status==='loading'}>{status==='loading'?<><RefreshCcw className="spin" size={17}/>Conectando...</>:<>Conectar mock ESPN <Activity size={17}/></>}</button><small>Conexión de sólo lectura: los picks se siguen en ESPN y nunca se realizan desde Baseline.</small>
-  </div></div>
-}
-
-function DraftPage({ players, openPlayer, league, espnAuth, onReconnect }) {
-  const [strategy,setStrategy]=useState('balanced')
-  const [manualRound,setManualRound]=useState(1)
-  const [slot,setSlot]=useState(1)
-  const [mockTeamCount,setMockTeamCount]=useState(12)
-  const [draftMode,setDraftMode]=useState('prep')
-  const [mockDraft,setMockDraft]=useState(null)
-  const [mockUpdated,setMockUpdated]=useState(null)
-  const [showEspnMock,setShowEspnMock]=useState(false)
-  const [espnMockLeague,setEspnMockLeague]=useState(null)
-  const [espnMockAuth,setEspnMockAuth]=useState(null)
-  const [manualDrafted,setManualDrafted]=useStoredState('baseline-draft',[])
-  const [queue,setQueue]=useStoredState('baseline-draft-queue',[])
-  const [position,setPosition]=useState('TODOS')
-  const [rankMode,setRankMode]=useState('FIT')
-  const espnLive=draftMode==='espn'
-  const espnMockActive=draftMode==='espn-mock'
-  const espnConnected=espnLive||espnMockActive
-  const mockActive=draftMode==='mock'
-  const sessionActive=espnConnected||mockActive
-  const trackedLeague=espnMockActive?espnMockLeague:league
-  const trackedAuth=espnMockActive?espnMockAuth:espnAuth
-  const live=useLiveDraft({enabled:espnConnected,league:trackedLeague,auth:trackedAuth,players})
-  const activeDraft=mockActive?mockDraft:espnConnected?live.draft:null
-  const sessionDrafted=activeDraft?.picks.map(pick=>pick.playerId).filter(Boolean)||[]
-  const draftedIds=sessionActive&&activeDraft?sessionDrafted:manualDrafted
-  const activeQueue=queue.filter(id=>!draftedIds.includes(id))
-  const myTeamId=mockActive?`mock-${slot}`:String(trackedLeague?.teamId||'')
-  const myPicks=sessionActive&&activeDraft
-    ? activeDraft.picks.filter(pick=>pick.teamId===myTeamId).map(pick=>pick.player).filter(Boolean)
-    : manualDrafted.map(id=>players.find(player=>player.id===id)).filter(Boolean)
-  const strengths=rosterStrengths(myPicks,players)
-  const currentPick=sessionActive&&activeDraft?`#${activeDraft.nextOverall}`:`${manualRound}.${String(slot).padStart(2,'0')}`
-  const myTurn=sessionActive&&activeDraft?.currentTeamId===myTeamId&&(mockActive||activeDraft?.inProgress)
-  const canConnect=Boolean(league)&&(!league.isPrivate||Boolean(espnAuth?.swid))
-  const available=useMemo(()=>players.filter(player=>!draftedIds.includes(player.id)&&(position==='TODOS'||player.position?.includes(position))).sort((a,b)=>rankMode==='FIT'?strategyScore(b,strategy)-strategyScore(a,strategy):b.value-a.value),[players,draftedIds,position,strategy,rankMode])
-  const toggleQueue=id=>setQueue(items=>items.includes(id)?items.filter(item=>item!==id):unique([...items,id]))
-  const stampMock=next=>{setMockDraft(next);setMockUpdated(new Date().toISOString())}
-  const startMock=()=>{stampMock(createMockDraft(mockTeamCount,slot,league?.teamName));setDraftMode('mock')}
-  const resetMock=()=>stampMock(createMockDraft(mockTeamCount,slot,league?.teamName))
-  const connectEspnMock=({league:nextLeague,auth})=>{setEspnMockLeague(nextLeague);setEspnMockAuth(auth);setShowEspnMock(false);setDraftMode('espn-mock')}
-  const chooseMockPlayer=player=>{if(myTurn&&!mockDraft?.completed)stampMock(addMockDraftPick(mockDraft,player))}
-  const bestUndraftedPlayer=draft=>{
-    const selected=new Set(draft.picks.map(pick=>pick.playerId))
-    return players.filter(player=>!selected.has(String(player.id))).sort((a,b)=>b.value-a.value)[0]||null
-  }
-  const simulateNextPick=()=>{
-    if(!mockDraft||mockDraft.completed||myTurn)return
-    stampMock(addMockDraftPick(mockDraft,bestUndraftedPlayer(mockDraft)))
-  }
-  const simulateToMyTurn=()=>{
-    if(!mockDraft||mockDraft.completed)return
-    let next=mockDraft
-    const limit=next.order.length*2
-    for(let index=0;index<limit&&!next.completed&&next.currentTeamId!==myTeamId;index+=1){
-      const player=bestUndraftedPlayer(next)
-      if(!player)break
-      next=addMockDraftPick(next,player)
-    }
-    stampMock(next)
-  }
-  const chooseQueuedPlayer=()=>{
-    const player=activeQueue.map(id=>players.find(item=>String(item.id)===String(id))).find(Boolean)
-    if(player)chooseMockPlayer(player)
-  }
-  const handleDraftAction=player=>{
-    if(mockActive&&myTurn)return chooseMockPlayer(player)
-    if(sessionActive)return toggleQueue(player.id)
-    setManualDrafted([...manualDrafted,player.id]);setManualRound(manualRound+1)
-  }
-  const actionLabel=player=>mockActive&&myTurn?'Elegir':sessionActive?(queue.includes(player.id)?'Quitar cola':'A la cola'):'Draftear'
-  const sessionUpdated=mockActive?mockUpdated:live.lastUpdated
-  const sessionLabel=espnLive?'ESPN LIVE':espnMockActive?'ESPN MOCK':mockActive?'SIMULACIÓN':'PREPARACIÓN'
-
-  return <div className="page draft-page">
-    <div className="draft-header"><div><span className="eyebrow">DRAFT ROOM · {sessionLabel}</span><h1>{myTurn?'Estás en el reloj.':'Construye con intención.'}</h1><p>{espnLive?'Picks sincronizados automáticamente; confirma tus selecciones dentro de ESPN.':espnMockActive?'Siguiendo en tiempo real la sala temporal de ESPN Fantasy.':mockActive?'Prueba el flujo live con picks locales que no afectan tu liga.':'Conecta un draft real, una sala mock de ESPN o inicia una simulación local.'}</p></div><div className="draft-status"><span>{sessionActive?'PRÓXIMO PICK':'PICK MANUAL'}</span><strong>{currentPick}</strong>{!sessionActive&&<div className="draft-setup"><label>Posición<select value={slot} onChange={e=>setSlot(Number(e.target.value))}>{Array.from({length:mockTeamCount},(_,i)=><option key={i+1}>{i+1}</option>)}</select></label><label>Mock<select value={mockTeamCount} onChange={e=>{const count=Number(e.target.value);setMockTeamCount(count);setSlot(current=>Math.min(current,count))}}>{[8,10,12].map(count=><option value={count} key={count}>{count} equipos</option>)}</select></label><button onClick={()=>{setManualDrafted([]);setManualRound(1)}}><RefreshCcw size={15}/> Reiniciar</button></div>}</div></div>
-
-    <section className={`live-draft-console ${sessionActive?'connected':''} ${mockActive?'simulation':''} ${myTurn?'my-turn':''}`}><div className="live-console-head"><div className="live-indicator"><i/><div><span>{mockActive?'MOCK DRAFT LOCAL':espnMockActive?'ESPN MOCK SYNC':'ESPN DRAFT SYNC'}</span><strong>{mockActive?(activeDraft?.completed?'Mock finalizado':'Simulación activa'):!trackedLeague?'Liga no conectada':espnConnected?(activeDraft?.completed?'Draft finalizado':live.error?'Conexión interrumpida':activeDraft&&!activeDraft.inProgress&&!activeDraft.picks.length?'Esperando inicio en ESPN':'Seguimiento activo'):'Listo para conectar'}</strong></div></div><div className="live-actions">{espnConnected&&<button onClick={live.refresh} disabled={live.refreshing}><RefreshCcw className={live.refreshing?'spin':''} size={15}/>Actualizar</button>}{mockActive&&<button onClick={resetMock}><RefreshCcw size={15}/>Reiniciar mock</button>}{sessionActive?<button onClick={()=>setDraftMode('prep')}><X size={15}/>Salir</button>:<><button className="espn-mock-button" onClick={()=>setShowEspnMock(true)}><Activity size={15}/>Mock ESPN</button><button className="simulation-button" onClick={startMock}><Zap size={15}/>Simulación local</button><button className="connect-live" onClick={()=>canConnect?setDraftMode('espn'):onReconnect()}>{canConnect?<><Activity size={15}/>Draft de mi liga</>:<><Upload size={15}/>{league?.isPrivate?'Reautenticar ESPN':'Importar liga ESPN'}</>}</button></>}</div></div>
-      {espnConnected&&live.error&&<div className="live-error"><Info size={15}/><span>{live.error}</span>{trackedLeague?.isPrivate&&!trackedAuth?.swid&&<button onClick={espnMockActive?()=>setShowEspnMock(true):onReconnect}>Introducir credenciales</button>}</div>}
-      {sessionActive&&activeDraft&&<div className="live-stats"><div><span>EN EL RELOJ</span><strong>{activeDraft.completed?'—':espnConnected&&!activeDraft.inProgress&&!activeDraft.picks.length?'Esperando ESPN':activeDraft.currentTeam?.name||(mockActive?'Equipo simulado':'Esperando ESPN')}</strong></div><div><span>PICK</span><strong>{activeDraft.completed?'—':activeDraft.nextOverall}</strong></div><div><span>RONDA</span><strong>{activeDraft.currentRound}{activeDraft.totalRounds?` / ${activeDraft.totalRounds}`:''}</strong></div><div><span>SELECCIONES</span><strong>{activeDraft.picks.length}</strong></div><div><span>ACTUALIZADO</span><strong>{sessionUpdated?timeAgo(sessionUpdated):'—'}</strong></div></div>}
-      {mockActive&&!activeDraft?.completed&&<div className="mock-controls"><div><strong>{myTurn?'Haz tu selección':'Los rivales están en el reloj'}</strong><span>{myTurn?'Elige un jugador del board o usa el primero de tu cola.':'Avanza un pick o simula automáticamente hasta tu turno.'}</span></div>{myTurn?<button onClick={chooseQueuedPlayer} disabled={!activeQueue.length}><Check size={15}/>Elegir primero de la cola</button>:<><button onClick={simulateNextPick}><ChevronRight size={15}/>Siguiente pick</button><button className="simulate-until" onClick={simulateToMyTurn}><Zap size={15}/>Hasta mi turno</button></>}</div>}
-      {myTurn&&<div className="on-clock-banner"><Zap size={18}/><div><strong>Tu equipo está en el reloj</strong><span>El board ya excluyó todos los picks y recalculó el mejor fit.</span></div></div>}
-      {sessionActive&&activeDraft?.picks.length>0&&<div className="live-pick-feed"><span>ÚLTIMOS PICKS</span><div>{activeDraft.picks.slice(-6).reverse().map(pick=><div key={pick.id}>{pick.player?<PlayerPhoto player={pick.player}/>:<div className="unknown-pick">?</div>}<div><strong>{pick.player?.name||`Jugador ESPN ${pick.playerId}`}</strong><small>{activeDraft.teams.find(team=>team.id===pick.teamId)?.name||`Equipo ${pick.teamId}`} · #{pick.overall}</small></div></div>)}</div></div>}
-    </section>
-
-    <section className="strategy-section"><SectionHeading eyebrow="01 · ELIGE TU PLAN" title="Estrategia de construcción"/><div className="strategy-grid">{STRATEGIES.map(({id,name,kicker,copy,icon:Icon})=><button className={`strategy-card ${strategy===id?'active':''}`} onClick={()=>setStrategy(id)} key={id}><div><Icon size={21}/>{strategy===id&&<span className="check"><Check size={13}/></span>}</div><span>{kicker}</span><h3>{name}</h3><p>{copy}</p></button>)}</div></section>
-    <section className="draft-layout"><div className="surface draft-board"><div className="card-title-row"><div><span>02 · MEJORES DISPONIBLES</span><h3>Board {sessionActive?(mockActive?'simulado':'live'):'dinámico'}</h3></div><div className="board-filters"><select value={position} onChange={e=>setPosition(e.target.value)}><option>TODOS</option>{['PG','SG','SF','PF','C'].map(p=><option key={p}>{p}</option>)}</select><button onClick={()=>setRankMode(rankMode==='FIT'?'VALUE':'FIT')}><SlidersHorizontal size={15}/>{rankMode}</button></div></div><div className="draft-recommendation"><Sparkles size={18}/><div><strong>Recomendación para {currentPick}</strong><p>{sessionActive&&activeDraft?`${activeDraft.picks.length} jugadores eliminados automáticamente. `:''}Ordenado por {rankMode==='FIT'?`encaje con ${STRATEGIES.find(s=>s.id===strategy)?.name}`:'valor H2H 8-CAT'}.</p></div></div><div className="draft-list">{available.slice(0,10).map((player,index)=><div className={`draft-row ${queue.includes(player.id)?'queued':''}`} key={player.id}><span className="draft-rank">{index+1}</span><button className="draft-player" onClick={()=>openPlayer(player)}><PlayerPhoto player={player}/><div><strong>{player.name}</strong><span>{player.team} · {player.position}</span></div></button><div className="fit-score"><span>{rankMode}</span><b>{Math.min(99,Math.round(rankMode==='FIT'?strategyScore(player,strategy):player.value))}</b></div><div className="category-tags"><span>{player.pts>23?'PTS':player.reb>8?'REB':'FG%'}</span><span>{player.ast>6?'AST':player.blk>1.2?'BLK':'VALUE'}</span></div><button className="draft-button" disabled={mockActive&&activeDraft?.completed} onClick={()=>handleDraftAction(player)}>{actionLabel(player)}</button></div>)}</div></div>
-      <aside className="draft-sidebar"><div className="surface build-card"><span>{espnMockActive?'MI ROSTER MOCK ESPN':espnLive?'MI ROSTER ESPN':mockActive?'MI ROSTER MOCK':'TU CONSTRUCCIÓN REAL'}</span><h3>Percentiles del draft</h3>{!myPicks.length?<div className="empty-picks"><Target size={25}/><p>{sessionActive?'Tus picks aparecerán al seleccionarse.':'Draftea un jugador para calcular tu perfil.'}</p></div>:<div className="draft-profile-list">{strengths.map(item=><div key={item.key}><span>{item.label}</span><i><em style={{width:`${item.value}%`}}/></i><b>{item.value}</b></div>)}</div>}</div><div className="surface drafted-card"><div className="card-title-row"><div><span>{espnMockActive?'MIS PICKS MOCK ESPN':espnLive?'MIS PICKS ESPN':mockActive?'MIS PICKS MOCK':'TUS PICKS'}</span><h3>{myPicks.length} seleccionados</h3></div></div>{!myPicks.length?<div className="empty-picks"><Trophy size={25}/><p>Tus picks aparecerán aquí.</p></div>:myPicks.map((player,index)=><div className="picked-player" key={player.id}><span>{index+1}</span><PlayerPhoto player={player}/><div><strong>{player.name}</strong><small>{player.position} · {player.team}</small></div>{!sessionActive&&<button onClick={()=>setManualDrafted(manualDrafted.filter(id=>id!==player.id))} aria-label="Quitar pick"><X size={14}/></button>}</div>)}</div>{sessionActive&&<div className="surface queue-card"><div className="card-title-row"><div><span>COLA LOCAL</span><h3>{activeQueue.length} jugadores</h3></div></div>{activeQueue.map((id,index)=>{const player=players.find(item=>String(item.id)===String(id));return player?<div className="picked-player" key={id}><span>{index+1}</span><PlayerPhoto player={player}/><div><strong>{player.name}</strong><small>FIT {Math.min(99,Math.round(strategyScore(player,strategy)))}</small></div><button onClick={()=>toggleQueue(id)} aria-label="Quitar de cola"><X size={14}/></button></div>:null})}</div>}</aside>
-    </section>
-    {showEspnMock&&<EspnMockModal existingAuth={espnAuth} onClose={()=>setShowEspnMock(false)} onConnected={connectEspnMock}/>}
-  </div>
-}
-
 function PlayerModal({ player, season, onClose, toggleWatchlist, saved, inRoster, toggleRoster, useTrade }) {
   if(!player)return null
   return <div className="modal-backdrop" onMouseDown={onClose}><div className="player-modal" onMouseDown={e=>e.stopPropagation()}><button className="modal-close" onClick={onClose}><X size={19}/></button><div className="player-modal-hero" style={{'--team':TEAM_COLORS[player.team]||'#555'}}><div className="player-modal-copy"><span>{player.teamName||player.team} · {player.position}</span><h2>{player.name}</h2><div><span className="status-dot"/> {player.status==='active'?'Activo':player.status} {player.age&&<><em>•</em>{player.age} años</>}</div></div><PlayerPhoto player={player} size="hero"/><div className="modal-rating"><span>VALUE 8-CAT</span><strong>{player.value}</strong><small>{player.gp} GP</small></div></div><div className="modal-content"><div className="modal-actions"><button className={saved?'saved':''} onClick={()=>toggleWatchlist(player.id)}><Star size={16} fill={saved?'currentColor':'none'}/>{saved?'Quitar de watchlist':'Añadir a watchlist'}</button><button className={inRoster?'saved':''} onClick={()=>toggleRoster(player.id)}><Users size={16}/>{inRoster?'Quitar de mi equipo':'Añadir a mi equipo'}</button><button onClick={()=>useTrade(player.id)}><ArrowLeftRight size={16}/>Usar en Trade Lab</button></div><div className="season-line"><div><span>TEMPORADA {season}</span><b>{player.gp} GP · {fmt(player.min)} MIN</b></div><span>{player.team} · {player.position}</span></div><div className="modal-stats">{CATEGORY_META.map(([key,label])=><div key={key}><span>{label}</span><strong>{fmt(player[key])}{key.includes('Pct')?'%':''}</strong><small>por partido</small></div>)}</div><div className="modal-insight"><Sparkles size={20}/><div><span>LECTURA 8-CAT</span><p><b>{player.name}</b> destaca principalmente en {CATEGORY_META.map(([key,label])=>({label,value:player[key]})).sort((a,b)=>b.value-a.value).slice(0,2).map(x=>x.label).join(' y ')}. Valor calculado únicamente con estadísticas ESPN.</p></div></div></div></div></div>
@@ -726,7 +476,7 @@ export default function App() {
     {page==='players'&&<PlayersPage players={players} openPlayer={setSelected} watchlist={watchlist} toggleWatchlist={toggleWatchlist} watchlistOnly={watchlistOnly} setWatchlistOnly={setWatchlistOnly}/>} 
     {page==='trade'&&<TradePage players={players} roster={roster} league={league} seedPlayer={tradeSeed} clearSeed={()=>setTradeSeed(null)}/>} 
     {page==='prediction'&&<LeaguePrediction league={league} players={players} onImport={()=>setShowImport(true)}/>}
-    {page==='draft'&&<DraftPage players={players} openPlayer={setSelected} league={league} espnAuth={espnAuth} onReconnect={()=>setShowImport(true)}/>} 
+    {page==='draft'&&<DraftRoom players={players} season={season} openPlayer={setSelected} PlayerPhoto={PlayerPhoto} rosterStrengths={rosterStrengths}/>}
   </div><footer><span>BASELINE · H2H 8-CAT</span><span>Datos: {source} · {season} · {count} jugadores</span><span>{league?`ESPN · ${timeAgo(league.syncedAt)}`:'Sin liga conectada'}</span></footer></main><nav className="mobile-nav">{NAV.map(({id,label,icon:Icon})=><button className={page===id?'active':''} onClick={()=>setPage(id)} key={id}><Icon size={19}/><span>{label}</span></button>)}</nav>
     {selected&&<PlayerModal player={selected} season={season} onClose={()=>setSelected(null)} toggleWatchlist={toggleWatchlist} saved={watchlist.includes(String(selected.id))} inRoster={rosterIds.includes(String(selected.id))} toggleRoster={toggleRoster} useTrade={useTrade}/>} 
     {showImport&&<ImportModal players={players} existing={league} onClose={()=>setShowImport(false)} onImported={handleImport}/>} 
