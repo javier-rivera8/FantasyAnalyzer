@@ -40,4 +40,4 @@ Para otra temporada, ejecuta directamente `node scripts/fetch-players.mjs AÑO_E
 
 Las ligas privadas usan `SWID` y `espn_s2` únicamente durante la solicitud al servidor local; esas credenciales no se guardan. `npm run dev` activa el endpoint durante desarrollo y `npm start` sirve el build de producción con la misma integración.
 
-Durante el draft, las selecciones se hacen en ESPN y se registran manualmente en Baseline. El draft room no consulta ni modifica el estado del draft de ESPN.
+Durante el draft, puedes registrar picks manualmente o sincronizarlos con la extensión [Baseline · ESPN Draft Sync](extensions/espn-baseline/README.md). Descárgala desde el Draft Room o carga `extensions/espn-baseline` como extensión descomprimida en Chrome/Edge, recarga ambas pestañas, activa «Usar esta sala de ESPN» y pulsa «Conectar ESPN» en Baseline. Las selecciones se hacen en ESPN; la extensión solo lee y transmite el historial entre pestañas del mismo navegador.

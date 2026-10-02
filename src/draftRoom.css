@@ -1,4 +1,13 @@
 .manual-draft { color: #241d2c; }
+.manual-espn-sync { padding: 20px; margin-bottom: 14px; border-left: 4px solid #6d28d9; }
+.manual-sync-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.manual-sync-actions a { text-decoration: none; }
+.manual-sync-dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: #a99aae; }
+.manual-sync-dot.active { background: #22854f; }
+.manual-sync-warning { color: #865400; padding: 9px 12px; background: #fff7e2; font-size: 11px; line-height: 1.5; }
+.manual-sync-instructions { margin-top: 14px; font-size: 11px; color: #74677e; line-height: 1.7; }
+.manual-sync-instructions summary { cursor: pointer; color: #6d28d9; }
+@media (max-width: 800px) { .manual-espn-sync .manual-section-head { align-items: flex-start; flex-direction: column; } }
 .manual-draft-hero { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 30px 34px; margin-bottom: 14px; background: linear-gradient(120deg, #1c112c, #322046); color: #fff; }
 .manual-draft-hero h1 { margin: 7px 0; font-family: var(--display); font-size: clamp(30px, 3vw, 46px); letter-spacing: -.04em; }
 .manual-draft-hero p { max-width: 610px; font-size: 11px; line-height: 1.5; color: #d0c2de; }

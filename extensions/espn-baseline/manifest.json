@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Baseline · ESPN Draft Sync",
+  "version": "1.0.0",
+  "description": "Sincroniza los picks visibles del draft de ESPN con Baseline. No realiza selecciones ni lee cookies.",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["https://fantasy.espn.com/basketball/draft*", "http://localhost/*", "http://127.0.0.1/*", "https://fantasy-analyzer-jr-2026.web.app/*", "https://fantasy-analyzer-jr-2026.firebaseapp.com/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_popup": "popup.html", "default_title": "Baseline Draft Sync" },
+  "content_scripts": [
+    { "matches": ["https://fantasy.espn.com/basketball/draft*"], "js": ["espn-parser.js", "espn-content.js"], "run_at": "document_idle" },
+    { "matches": ["http://localhost/*", "http://127.0.0.1/*", "https://fantasy-analyzer-jr-2026.web.app/*", "https://fantasy-analyzer-jr-2026.firebaseapp.com/*"], "js": ["baseline-content.js"], "run_at": "document_idle" }
+  ]
+}

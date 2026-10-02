@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/package-espn-extension.mjs",
+    "extension:pack": "node scripts/package-espn-extension.mjs",
+    "test:extension": "node --test tests/espn-extension.test.mjs",
     "build": "vite build",
     "start": "node server.mjs",
     "preview": "vite preview",

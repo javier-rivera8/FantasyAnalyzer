@@ -1,0 +1,15 @@
+<!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="baseline-draft-sync" content="1"><title>Baseline · Prueba de sincronización</title></head><body>
+<div id="root"></div>
+<div style="position:fixed;bottom:12px;right:12px;z-index:9999;display:flex;gap:6px;background:#fff;padding:8px;border:1px solid #ccc">
+  <button id="send">Enviar historial ESPN</button><button id="undo">Simular deshacer ESPN</button><button id="pause">Simular captura detenida</button>
+</div>
+<script type="module" src="/src/main.jsx"></script>
+<script type="module">
+const snapshot = await (await fetch('/tests/fixtures/espn-draft-snapshot.json')).json()
+let current = null
+const send = () => window.postMessage({ source: 'baseline-espn-extension-v1', type: 'SNAPSHOT', extensionInstalled: true, snapshot: current }, location.origin)
+document.getElementById('send').onclick = () => { current = snapshot; send() }
+document.getElementById('undo').onclick = () => { current = { ...snapshot, picks: snapshot.picks.slice(0, 155) }; send() }
+document.getElementById('pause').onclick = () => { current = null; send() }
+setInterval(send, 3000)
+</script></body></html>

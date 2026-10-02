@@ -1,0 +1,9 @@
+body { width: 300px; margin: 0; padding: 22px; font: 13px/1.5 system-ui, sans-serif; color: #31233c; background: #faf7fd; }
+.eyebrow { font-size: 10px; font-weight: 800; color: #6d28d9; letter-spacing: 1px; }
+h1 { font-size: 26px; margin: 6px 0 14px; }
+p { color: #6d6175; }
+#status { background: #eee5f6; padding: 12px; border-radius: 6px; color: #39234e; }
+button { width: 100%; margin-top: 8px; padding: 11px; border: 1px solid #6d28d9; border-radius: 5px; background: #6d28d9; color: white; font: inherit; font-weight: 700; cursor: pointer; }
+button.secondary { color: #6d28d9; background: white; }
+button:disabled { opacity: .5; cursor: default; }
+.help { font-size: 11px; margin-top: 18px; }

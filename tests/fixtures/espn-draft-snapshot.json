@@ -1,0 +1,1326 @@
+{
+  "completeHistory": true,
+  "connectionFailed": true,
+  "draftId": "2027:1140712594",
+  "leagueId": "1140712594",
+  "myTeamId": "espn-5",
+  "order": [
+    "espn-2",
+    "espn-6",
+    "espn-8",
+    "espn-7",
+    "espn-9",
+    "espn-4",
+    "espn-12",
+    "espn-14",
+    "espn-11",
+    "espn-5",
+    "espn-13",
+    "espn-1"
+  ],
+  "picks": [
+    {
+      "overall": 1,
+      "playerId": "4278073",
+      "playerName": "Shai Gilgeous-Alexander",
+      "round": 1,
+      "roundPick": 1,
+      "teamId": "espn-2"
+    },
+    {
+      "overall": 2,
+      "playerId": "3112335",
+      "playerName": "Nikola Jokic",
+      "round": 1,
+      "roundPick": 2,
+      "teamId": "espn-6"
+    },
+    {
+      "overall": 3,
+      "playerId": "5104157",
+      "playerName": "Victor Wembanyama",
+      "round": 1,
+      "roundPick": 3,
+      "teamId": "espn-8"
+    },
+    {
+      "overall": 4,
+      "playerId": "3945274",
+      "playerName": "Luka Doncic",
+      "round": 1,
+      "roundPick": 4,
+      "teamId": "espn-7"
+    },
+    {
+      "overall": 5,
+      "playerId": "4594268",
+      "playerName": "Anthony Edwards",
+      "round": 1,
+      "roundPick": 5,
+      "teamId": "espn-9"
+    },
+    {
+      "overall": 6,
+      "playerId": "3908809",
+      "playerName": "Donovan Mitchell",
+      "round": 1,
+      "roundPick": 6,
+      "teamId": "espn-4"
+    },
+    {
+      "overall": 7,
+      "playerId": "4065648",
+      "playerName": "Jayson Tatum",
+      "round": 1,
+      "roundPick": 7,
+      "teamId": "espn-12"
+    },
+    {
+      "overall": 8,
+      "playerId": "4396993",
+      "playerName": "Tyrese Haliburton",
+      "round": 1,
+      "roundPick": 8,
+      "teamId": "espn-14"
+    },
+    {
+      "overall": 9,
+      "playerId": "4431678",
+      "playerName": "Tyrese Maxey",
+      "round": 1,
+      "roundPick": 9,
+      "teamId": "espn-11"
+    },
+    {
+      "overall": 10,
+      "playerId": "4701230",
+      "playerName": "Jalen Johnson",
+      "round": 1,
+      "roundPick": 10,
+      "teamId": "espn-5"
+    },
+    {
+      "overall": 11,
+      "playerId": "4432166",
+      "playerName": "Cade Cunningham",
+      "round": 1,
+      "roundPick": 11,
+      "teamId": "espn-13"
+    },
+    {
+      "overall": 12,
+      "playerId": "4433134",
+      "playerName": "Scottie Barnes",
+      "round": 1,
+      "roundPick": 12,
+      "teamId": "espn-1"
+    },
+    {
+      "overall": 13,
+      "playerId": "4684740",
+      "playerName": "Amen Thompson",
+      "round": 2,
+      "roundPick": 1,
+      "teamId": "espn-1"
+    },
+    {
+      "overall": 14,
+      "playerId": "6583",
+      "playerName": "Anthony Davis",
+      "round": 2,
+      "roundPick": 2,
+      "teamId": "espn-13"
+    },
+    {
+      "overall": 15,
+      "playerId": "5041939",
+      "playerName": "Cooper Flagg",
+      "round": 2,
+      "roundPick": 3,
+      "teamId": "espn-5"
+    },
+    {
+      "overall": 16,
+      "playerId": "6450",
+      "playerName": "Kawhi Leonard",
+      "round": 2,
+      "roundPick": 4,
+      "teamId": "espn-11"
+    },
+    {
+      "overall": 17,
+      "playerId": "4066261",
+      "playerName": "Bam Adebayo",
+      "round": 2,
+      "roundPick": 5,
+      "teamId": "espn-14"
+    },
+    {
+      "overall": 18,
+      "playerId": "3136195",
+      "playerName": "Karl-Anthony Towns",
+      "round": 2,
+      "roundPick": 6,
+      "teamId": "espn-12"
+    },
+    {
+      "overall": 19,
+      "playerId": "4433621",
+      "playerName": "Jalen Duren",
+      "round": 2,
+      "roundPick": 7,
+      "teamId": "espn-4"
+    },
+    {
+      "overall": 20,
+      "playerId": "3032977",
+      "playerName": "Giannis Antetokounmpo",
+      "round": 2,
+      "roundPick": 8,
+      "teamId": "espn-9"
+    },
+    {
+      "overall": 21,
+      "playerId": "3936299",
+      "playerName": "Jamal Murray",
+      "round": 2,
+      "roundPick": 9,
+      "teamId": "espn-7"
+    },
+    {
+      "overall": 22,
+      "playerId": "4432816",
+      "playerName": "LaMelo Ball",
+      "round": 2,
+      "roundPick": 10,
+      "teamId": "espn-8"
+    },
+    {
+      "overall": 23,
+      "playerId": "3992",
+      "playerName": "James Harden",
+      "round": 2,
+      "roundPick": 11,
+      "teamId": "espn-6"
+    },
+    {
+      "overall": 24,
+      "playerId": "3147657",
+      "playerName": "Mikal Bridges",
+      "round": 2,
+      "roundPick": 12,
+      "teamId": "espn-2"
+    },
+    {
+      "overall": 25,
+      "playerId": "3078576",
+      "playerName": "Derrick White",
+      "round": 3,
+      "roundPick": 1,
+      "teamId": "espn-2"
+    },
+    {
+      "overall": 26,
+      "playerId": "3149673",
+      "playerName": "Pascal Siakam",
+      "round": 3,
+      "roundPick": 2,
+      "teamId": "espn-6"
+    },
+    {
+      "overall": 27,
+      "playerId": "4432158",
+      "playerName": "Evan Mobley",
+      "round": 3,
+      "roundPick": 3,
+      "teamId": "espn-8"
+    },
+    {
+      "overall": 28,
+      "playerId": "4871144",
+      "playerName": "Alperen Sengun",
+      "round": 3,
+      "roundPick": 4,
+      "teamId": "espn-7"
+    },
+    {
+      "overall": 29,
+      "playerId": "3202",
+      "playerName": "Kevin Durant",
+      "round": 3,
+      "roundPick": 5,
+      "teamId": "espn-9"
+    },
+    {
+      "overall": 30,
+      "playerId": "3975",
+      "playerName": "Stephen Curry",
+      "round": 3,
+      "roundPick": 6,
+      "teamId": "espn-4"
+    },
+    {
+      "overall": 31,
+      "playerId": "4278039",
+      "playerName": "Nickeil Alexander-Walker",
+      "round": 3,
+      "roundPick": 7,
+      "teamId": "espn-12"
+    },
+    {
+      "overall": 32,
+      "playerId": "3934672",
+      "playerName": "Jalen Brunson",
+      "round": 3,
+      "roundPick": 8,
+      "teamId": "espn-14"
+    },
+    {
+      "overall": 33,
+      "playerId": "3155942",
+      "playerName": "Domantas Sabonis",
+      "round": 3,
+      "roundPick": 9,
+      "teamId": "espn-11"
+    },
+    {
+      "overall": 34,
+      "playerId": "4066336",
+      "playerName": "Lauri Markkanen",
+      "round": 3,
+      "roundPick": 10,
+      "teamId": "espn-5"
+    },
+    {
+      "overall": 35,
+      "playerId": "4593803",
+      "playerName": "Jalen Williams",
+      "round": 3,
+      "roundPick": 11,
+      "teamId": "espn-13"
+    },
+    {
+      "overall": 36,
+      "playerId": "4871145",
+      "playerName": "Josh Giddey",
+      "round": 3,
+      "roundPick": 12,
+      "teamId": "espn-1"
+    },
+    {
+      "overall": 37,
+      "playerId": "4869342",
+      "playerName": "Dyson Daniels",
+      "round": 4,
+      "roundPick": 1,
+      "teamId": "espn-1"
+    },
+    {
+      "overall": 38,
+      "playerId": "4278104",
+      "playerName": "Michael Porter Jr.",
+      "round": 4,
+      "roundPick": 2,
+      "teamId": "espn-13"
+    },
+    {
+      "overall": 39,
+      "playerId": "4396971",
+      "playerName": "Naz Reid",
+      "round": 4,
+      "roundPick": 3,
+      "teamId": "espn-5"
+    },
+    {
+      "overall": 40,
+      "playerId": "5061575",
+      "playerName": "Kon Knueppel",
+      "round": 4,
+      "roundPick": 4,
+      "teamId": "espn-11"
+    },
+    {
+      "overall": 41,
+      "playerId": "4066320",
+      "playerName": "Desmond Bane",
+      "round": 4,
+      "roundPick": 5,
+      "teamId": "espn-14"
+    },
+    {
+      "overall": 42,
+      "playerId": "4397688",
+      "playerName": "Trey Murphy III",
+      "round": 4,
+      "roundPick": 6,
+      "teamId": "espn-12"
+    },
+    {
+      "overall": 43,
+      "playerId": "3136193",
+      "playerName": "Devin Booker",
+      "round": 4,
+      "roundPick": 7,
+      "teamId": "espn-4"
+    },
+    {
+      "overall": 44,
+      "playerId": "5105565",
+      "playerName": "Donovan Clingan",
+      "round": 4,
+      "roundPick": 8,
+      "teamId": "espn-9"
+    },
+    {
+      "overall": 45,
+      "playerId": "4431680",
+      "playerName": "Onyeka Okongwu",
+      "round": 4,
+      "roundPick": 9,
+      "teamId": "espn-7"
+    },
+    {
+      "overall": 46,
+      "playerId": "4433136",
+      "playerName": "Walker Kessler",
+      "round": 4,
+      "roundPick": 10,
+      "teamId": "espn-8"
+    },
+    {
+      "overall": 47,
+      "playerId": "4066457",
+      "playerName": "Austin Reaves",
+      "round": 4,
+      "roundPick": 11,
+      "teamId": "espn-6"
+    },
+    {
+      "overall": 48,
+      "playerId": "6442",
+      "playerName": "Kyrie Irving",
+      "round": 4,
+      "roundPick": 12,
+      "teamId": "espn-2"
+    },
+    {
+      "overall": 49,
+      "playerId": "4066328",
+      "playerName": "Jarrett Allen",
+      "round": 5,
+      "roundPick": 1,
+      "teamId": "espn-2"
+    },
+    {
+      "overall": 50,
+      "playerId": "4277905",
+      "playerName": "Trae Young",
+      "round": 5,
+      "roundPick": 2,
+      "teamId": "espn-6"
+    },
+    {
+      "overall": 51,
+      "playerId": "4433255",
+      "playerName": "Chet Holmgren",
+      "round": 5,
+      "roundPick": 3,
+      "teamId": "espn-8"
+    },
+    {
+      "overall": 52,
+      "playerId": "4066259",
+      "playerName": "De'Aaron Fox",
+      "round": 5,
+      "roundPick": 4,
+      "teamId": "espn-7"
+    },
+    {
+      "overall": 53,
+      "playerId": "3032976",
+      "playerName": "Rudy Gobert",
+      "round": 5,
+      "roundPick": 5,
+      "teamId": "espn-9"
+    },
+    {
+      "overall": 54,
+      "playerId": "4396907",
+      "playerName": "Darius Garland",
+      "round": 5,
+      "roundPick": 6,
+      "teamId": "espn-4"
+    },
+    {
+      "overall": 55,
+      "playerId": "5095151",
+      "playerName": "Caleb Wilson",
+      "round": 5,
+      "roundPick": 7,
+      "teamId": "espn-12"
+    },
+    {
+      "overall": 56,
+      "playerId": "4711272",
+      "playerName": "Reed Sheppard",
+      "round": 5,
+      "roundPick": 8,
+      "teamId": "espn-14"
+    },
+    {
+      "overall": 57,
+      "playerId": "4711294",
+      "playerName": "Matas Buzelis",
+      "round": 5,
+      "roundPick": 9,
+      "teamId": "espn-11"
+    },
+    {
+      "overall": 58,
+      "playerId": "4433287",
+      "playerName": "Brandon Miller",
+      "round": 5,
+      "roundPick": 10,
+      "teamId": "espn-5"
+    },
+    {
+      "overall": 59,
+      "playerId": "4395725",
+      "playerName": "Tyler Herro",
+      "round": 5,
+      "roundPick": 11,
+      "teamId": "espn-13"
+    },
+    {
+      "overall": 60,
+      "playerId": "3907497",
+      "playerName": "Dejounte Murray",
+      "round": 5,
+      "roundPick": 12,
+      "teamId": "espn-1"
+    },
+    {
+      "overall": 61,
+      "playerId": "5160992",
+      "playerName": "Alex Sarr",
+      "round": 6,
+      "roundPick": 1,
+      "teamId": "espn-1"
+    },
+    {
+      "overall": 62,
+      "playerId": "4683021",
+      "playerName": "Deni Avdija",
+      "round": 6,
+      "roundPick": 2,
+      "teamId": "espn-13"
+    },
+    {
+      "overall": 63,
+      "playerId": "4566434",
+      "playerName": "Franz Wagner",
+      "round": 6,
+      "roundPick": 3,
+      "teamId": "espn-5"
+    },
+    {
+      "overall": 64,
+      "playerId": "3917376",
+      "playerName": "Jaylen Brown",
+      "round": 6,
+      "roundPick": 4,
+      "teamId": "espn-11"
+    },
+    {
+      "overall": 65,
+      "playerId": "2595516",
+      "playerName": "Norman Powell",
+      "round": 6,
+      "roundPick": 5,
+      "teamId": "espn-14"
+    },
+    {
+      "overall": 66,
+      "playerId": "4709138",
+      "playerName": "Brandin Podziemski",
+      "round": 6,
+      "roundPick": 6,
+      "teamId": "espn-12"
+    },
+    {
+      "overall": 67,
+      "playerId": "5124612",
+      "playerName": "VJ Edgecombe",
+      "round": 6,
+      "roundPick": 7,
+      "teamId": "espn-4"
+    },
+    {
+      "overall": 68,
+      "playerId": "5105623",
+      "playerName": "Kel'el Ware",
+      "round": 6,
+      "roundPick": 8,
+      "teamId": "espn-9"
+    },
+    {
+      "overall": 69,
+      "playerId": "3934719",
+      "playerName": "OG Anunoby",
+      "round": 6,
+      "roundPick": 9,
+      "teamId": "espn-7"
+    },
+    {
+      "overall": 70,
+      "playerId": "4277961",
+      "playerName": "Jaren Jackson Jr.",
+      "round": 6,
+      "roundPick": 10,
+      "teamId": "espn-8"
+    },
+    {
+      "overall": 71,
+      "playerId": "1966",
+      "playerName": "LeBron James",
+      "round": 6,
+      "roundPick": 11,
+      "teamId": "espn-6"
+    },
+    {
+      "overall": 72,
+      "playerId": "6606",
+      "playerName": "Damian Lillard",
+      "round": 6,
+      "roundPick": 12,
+      "teamId": "espn-2"
+    },
+    {
+      "overall": 73,
+      "playerId": "2991230",
+      "playerName": "Fred VanVleet",
+      "round": 7,
+      "roundPick": 1,
+      "teamId": "espn-2"
+    },
+    {
+      "overall": 74,
+      "playerId": "4065733",
+      "playerName": "Ty Jerome",
+      "round": 7,
+      "roundPick": 2,
+      "teamId": "espn-6"
+    },
+    {
+      "overall": 75,
+      "playerId": "4066383",
+      "playerName": "Miles Bridges",
+      "round": 7,
+      "roundPick": 3,
+      "teamId": "espn-8"
+    },
+    {
+      "overall": 76,
+      "playerId": "4432573",
+      "playerName": "Paolo Banchero",
+      "round": 7,
+      "roundPick": 4,
+      "teamId": "espn-7"
+    },
+    {
+      "overall": 77,
+      "playerId": "4684742",
+      "playerName": "Ausar Thompson",
+      "round": 7,
+      "roundPick": 5,
+      "teamId": "espn-9"
+    },
+    {
+      "overall": 78,
+      "playerId": "5041935",
+      "playerName": "Cameron Boozer",
+      "round": 7,
+      "roundPick": 6,
+      "teamId": "espn-4"
+    },
+    {
+      "overall": 79,
+      "playerId": "3913176",
+      "playerName": "Brandon Ingram",
+      "round": 7,
+      "roundPick": 7,
+      "teamId": "espn-12"
+    },
+    {
+      "overall": 80,
+      "playerId": "4594327",
+      "playerName": "Keegan Murray",
+      "round": 7,
+      "roundPick": 8,
+      "teamId": "espn-14"
+    },
+    {
+      "overall": 81,
+      "playerId": "4017837",
+      "playerName": "Ivica Zubac",
+      "round": 7,
+      "roundPick": 9,
+      "teamId": "espn-11"
+    },
+    {
+      "overall": 82,
+      "playerId": "3102531",
+      "playerName": "Kristaps Porzingis",
+      "round": 7,
+      "roundPick": 10,
+      "teamId": "espn-5"
+    },
+    {
+      "overall": 83,
+      "playerId": "4431671",
+      "playerName": "Jaden McDaniels",
+      "round": 7,
+      "roundPick": 11,
+      "teamId": "espn-13"
+    },
+    {
+      "overall": 84,
+      "playerId": "5142718",
+      "playerName": "AJ Dybantsa",
+      "round": 7,
+      "roundPick": 12,
+      "teamId": "espn-1"
+    },
+    {
+      "overall": 85,
+      "playerId": "3064514",
+      "playerName": "Julius Randle",
+      "round": 8,
+      "roundPick": 1,
+      "teamId": "espn-1"
+    },
+    {
+      "overall": 86,
+      "playerId": "2490149",
+      "playerName": "CJ McCollum",
+      "round": 8,
+      "roundPick": 2,
+      "teamId": "espn-13"
+    },
+    {
+      "overall": 87,
+      "playerId": "3059319",
+      "playerName": "Andrew Wiggins",
+      "round": 8,
+      "roundPick": 3,
+      "teamId": "espn-5"
+    },
+    {
+      "overall": 88,
+      "playerId": "3059318",
+      "playerName": "Joel Embiid",
+      "round": 8,
+      "roundPick": 4,
+      "teamId": "espn-11"
+    },
+    {
+      "overall": 89,
+      "playerId": "4395724",
+      "playerName": "Immanuel Quickley",
+      "round": 8,
+      "roundPick": 5,
+      "teamId": "espn-14"
+    },
+    {
+      "overall": 90,
+      "playerId": "4433627",
+      "playerName": "Keyonte George",
+      "round": 8,
+      "roundPick": 6,
+      "teamId": "espn-12"
+    },
+    {
+      "overall": 91,
+      "playerId": "3133628",
+      "playerName": "Myles Turner",
+      "round": 8,
+      "roundPick": 7,
+      "teamId": "espn-4"
+    },
+    {
+      "overall": 92,
+      "playerId": "4251",
+      "playerName": "Paul George",
+      "round": 8,
+      "roundPick": 8,
+      "teamId": "espn-9"
+    },
+    {
+      "overall": 93,
+      "playerId": "4845367",
+      "playerName": "Stephon Castle",
+      "round": 8,
+      "roundPick": 9,
+      "teamId": "espn-7"
+    },
+    {
+      "overall": 94,
+      "playerId": "6440",
+      "playerName": "Tobias Harris",
+      "round": 8,
+      "roundPick": 10,
+      "teamId": "espn-8"
+    },
+    {
+      "overall": 95,
+      "playerId": "4869780",
+      "playerName": "Derik Queen",
+      "round": 8,
+      "roundPick": 11,
+      "teamId": "espn-6"
+    },
+    {
+      "overall": 96,
+      "playerId": "4066354",
+      "playerName": "Payton Pritchard",
+      "round": 8,
+      "roundPick": 12,
+      "teamId": "espn-2"
+    },
+    {
+      "overall": 97,
+      "playerId": "3062679",
+      "playerName": "Josh Hart",
+      "round": 9,
+      "roundPick": 1,
+      "teamId": "espn-2"
+    },
+    {
+      "overall": 98,
+      "playerId": "4278585",
+      "playerName": "Collin Gillespie",
+      "round": 9,
+      "roundPick": 2,
+      "teamId": "espn-6"
+    },
+    {
+      "overall": 99,
+      "playerId": "5037871",
+      "playerName": "Dylan Harper",
+      "round": 9,
+      "roundPick": 3,
+      "teamId": "espn-8"
+    },
+    {
+      "overall": 100,
+      "playerId": "4395628",
+      "playerName": "Zion Williamson",
+      "round": 9,
+      "roundPick": 4,
+      "teamId": "espn-7"
+    },
+    {
+      "overall": 101,
+      "playerId": "4591725",
+      "playerName": "Ryan Rollins",
+      "round": 9,
+      "roundPick": 5,
+      "teamId": "espn-9"
+    },
+    {
+      "overall": 102,
+      "playerId": "3908845",
+      "playerName": "John Collins",
+      "round": 9,
+      "roundPick": 6,
+      "teamId": "espn-4"
+    },
+    {
+      "overall": 103,
+      "playerId": "6478",
+      "playerName": "Nikola Vucevic",
+      "round": 9,
+      "roundPick": 7,
+      "teamId": "espn-12"
+    },
+    {
+      "overall": 104,
+      "playerId": "3978",
+      "playerName": "DeMar DeRozan",
+      "round": 9,
+      "roundPick": 8,
+      "teamId": "espn-14"
+    },
+    {
+      "overall": 105,
+      "playerId": "4395651",
+      "playerName": "Coby White",
+      "round": 9,
+      "roundPick": 9,
+      "teamId": "espn-11"
+    },
+    {
+      "overall": 106,
+      "playerId": "4683692",
+      "playerName": "Cason Wallace",
+      "round": 9,
+      "roundPick": 10,
+      "teamId": "espn-5"
+    },
+    {
+      "overall": 107,
+      "playerId": "4576087",
+      "playerName": "Peyton Watson",
+      "round": 9,
+      "roundPick": 11,
+      "teamId": "espn-13"
+    },
+    {
+      "overall": 108,
+      "playerId": "4397140",
+      "playerName": "Kevin Porter Jr.",
+      "round": 9,
+      "roundPick": 12,
+      "teamId": "espn-1"
+    },
+    {
+      "overall": 109,
+      "playerId": "3468",
+      "playerName": "Russell Westbrook",
+      "round": 10,
+      "roundPick": 1,
+      "teamId": "espn-1"
+    },
+    {
+      "overall": 110,
+      "playerId": "4592479",
+      "playerName": "Julian Champagnie",
+      "round": 10,
+      "roundPick": 2,
+      "teamId": "espn-13"
+    },
+    {
+      "overall": 111,
+      "playerId": "4397002",
+      "playerName": "Ayo Dosunmu",
+      "round": 10,
+      "roundPick": 3,
+      "teamId": "espn-5"
+    },
+    {
+      "overall": 112,
+      "playerId": "4432639",
+      "playerName": "Jabari Smith Jr.",
+      "round": 10,
+      "roundPick": 4,
+      "teamId": "espn-11"
+    },
+    {
+      "overall": 113,
+      "playerId": "4600663",
+      "playerName": "Zach Edey",
+      "round": 10,
+      "roundPick": 5,
+      "teamId": "espn-14"
+    },
+    {
+      "overall": 114,
+      "playerId": "4351852",
+      "playerName": "Mitchell Robinson",
+      "round": 10,
+      "roundPick": 6,
+      "teamId": "espn-12"
+    },
+    {
+      "overall": 115,
+      "playerId": "4397014",
+      "playerName": "Quentin Grimes",
+      "round": 10,
+      "roundPick": 7,
+      "teamId": "espn-4"
+    },
+    {
+      "overall": 116,
+      "playerId": "5175643",
+      "playerName": "Egor Demin",
+      "round": 10,
+      "roundPick": 8,
+      "teamId": "espn-9"
+    },
+    {
+      "overall": 117,
+      "playerId": "3448",
+      "playerName": "Brook Lopez",
+      "round": 10,
+      "roundPick": 9,
+      "teamId": "espn-7"
+    },
+    {
+      "overall": 118,
+      "playerId": "5041955",
+      "playerName": "Darryn Peterson",
+      "round": 10,
+      "roundPick": 10,
+      "teamId": "espn-8"
+    },
+    {
+      "overall": 119,
+      "playerId": "4278049",
+      "playerName": "Daniel Gafford",
+      "round": 10,
+      "roundPick": 11,
+      "teamId": "espn-6"
+    },
+    {
+      "overall": 120,
+      "playerId": "4601023",
+      "playerName": "Oso Ighodaro",
+      "round": 10,
+      "roundPick": 12,
+      "teamId": "espn-2"
+    },
+    {
+      "overall": 121,
+      "playerId": "3134908",
+      "playerName": "Jakob Poeltl",
+      "round": 11,
+      "roundPick": 1,
+      "teamId": "espn-2"
+    },
+    {
+      "overall": 122,
+      "playerId": "4278067",
+      "playerName": "Nic Claxton",
+      "round": 11,
+      "roundPick": 2,
+      "teamId": "espn-6"
+    },
+    {
+      "overall": 123,
+      "playerId": "4397424",
+      "playerName": "Neemias Queta",
+      "round": 11,
+      "roundPick": 3,
+      "teamId": "espn-8"
+    },
+    {
+      "overall": 124,
+      "playerId": "4592691",
+      "playerName": "Jake LaRavia",
+      "round": 11,
+      "roundPick": 4,
+      "teamId": "espn-7"
+    },
+    {
+      "overall": 125,
+      "playerId": "5174563",
+      "playerName": "Kyshawn George",
+      "round": 11,
+      "roundPick": 5,
+      "teamId": "espn-9"
+    },
+    {
+      "overall": 126,
+      "playerId": "4712849",
+      "playerName": "Anthony Black",
+      "round": 11,
+      "roundPick": 6,
+      "teamId": "espn-4"
+    },
+    {
+      "overall": 127,
+      "playerId": "4395630",
+      "playerName": "Devin Vassell",
+      "round": 11,
+      "roundPick": 7,
+      "teamId": "espn-12"
+    },
+    {
+      "overall": 128,
+      "playerId": "5144091",
+      "playerName": "Jeremiah Fears",
+      "round": 11,
+      "roundPick": 8,
+      "teamId": "espn-14"
+    },
+    {
+      "overall": 129,
+      "playerId": "4903027",
+      "playerName": "Cedric Coward",
+      "round": 11,
+      "roundPick": 9,
+      "teamId": "espn-11"
+    },
+    {
+      "overall": 130,
+      "playerId": "3138196",
+      "playerName": "Cameron Johnson",
+      "round": 11,
+      "roundPick": 10,
+      "teamId": "espn-5"
+    },
+    {
+      "overall": 131,
+      "playerId": "4873138",
+      "playerName": "Ace Bailey",
+      "round": 11,
+      "roundPick": 11,
+      "teamId": "espn-13"
+    },
+    {
+      "overall": 132,
+      "playerId": "4437244",
+      "playerName": "Jalen Green",
+      "round": 11,
+      "roundPick": 12,
+      "teamId": "espn-1"
+    },
+    {
+      "overall": 133,
+      "playerId": "3995",
+      "playerName": "Jrue Holiday",
+      "round": 12,
+      "roundPick": 1,
+      "teamId": "espn-1"
+    },
+    {
+      "overall": 134,
+      "playerId": "4431736",
+      "playerName": "Toumani Camara",
+      "round": 12,
+      "roundPick": 2,
+      "teamId": "espn-13"
+    },
+    {
+      "overall": 135,
+      "playerId": "4432194",
+      "playerName": "Day'Ron Sharpe",
+      "round": 12,
+      "roundPick": 3,
+      "teamId": "espn-5"
+    },
+    {
+      "overall": 136,
+      "playerId": "4279888",
+      "playerName": "Ja Morant",
+      "round": 12,
+      "roundPick": 4,
+      "teamId": "espn-11"
+    },
+    {
+      "overall": 137,
+      "playerId": "4397136",
+      "playerName": "Saddiq Bey",
+      "round": 12,
+      "roundPick": 5,
+      "teamId": "espn-14"
+    },
+    {
+      "overall": 138,
+      "playerId": "4222252",
+      "playerName": "Isaiah Hartenstein",
+      "round": 12,
+      "roundPick": 6,
+      "teamId": "espn-12"
+    },
+    {
+      "overall": 139,
+      "playerId": "3155526",
+      "playerName": "Dillon Brooks",
+      "round": 12,
+      "roundPick": 7,
+      "teamId": "espn-4"
+    },
+    {
+      "overall": 140,
+      "playerId": "2991350",
+      "playerName": "Alex Caruso",
+      "round": 12,
+      "roundPick": 8,
+      "teamId": "espn-9"
+    },
+    {
+      "overall": 141,
+      "playerId": "5142620",
+      "playerName": "Darius Acuff Jr.",
+      "round": 12,
+      "roundPick": 9,
+      "teamId": "espn-7"
+    },
+    {
+      "overall": 142,
+      "playerId": "4433083",
+      "playerName": "Cam Spencer",
+      "round": 12,
+      "roundPick": 10,
+      "teamId": "espn-8"
+    },
+    {
+      "overall": 143,
+      "playerId": "4395625",
+      "playerName": "RJ Barrett",
+      "round": 12,
+      "roundPick": 11,
+      "teamId": "espn-6"
+    },
+    {
+      "overall": 144,
+      "playerId": "4431785",
+      "playerName": "Scotty Pippen Jr.",
+      "round": 12,
+      "roundPick": 12,
+      "teamId": "espn-2"
+    },
+    {
+      "overall": 145,
+      "playerId": "4432165",
+      "playerName": "Jalen Suggs",
+      "round": 13,
+      "roundPick": 1,
+      "teamId": "espn-2"
+    },
+    {
+      "overall": 146,
+      "playerId": "2991070",
+      "playerName": "Jerami Grant",
+      "round": 13,
+      "roundPick": 2,
+      "teamId": "espn-6"
+    },
+    {
+      "overall": 147,
+      "playerId": "4684793",
+      "playerName": "Kyle Filipowski",
+      "round": 13,
+      "roundPick": 3,
+      "teamId": "espn-8"
+    },
+    {
+      "overall": 148,
+      "playerId": "4432810",
+      "playerName": "Isaiah Stewart",
+      "round": 13,
+      "roundPick": 4,
+      "teamId": "espn-7"
+    },
+    {
+      "overall": 149,
+      "playerId": "4277811",
+      "playerName": "Collin Sexton",
+      "round": 13,
+      "roundPick": 5,
+      "teamId": "espn-9"
+    },
+    {
+      "overall": 150,
+      "playerId": "4683688",
+      "playerName": "Dereck Lively II",
+      "round": 13,
+      "roundPick": 6,
+      "teamId": "espn-4"
+    },
+    {
+      "overall": 151,
+      "playerId": "4395712",
+      "playerName": "Andrew Nembhard",
+      "round": 13,
+      "roundPick": 7,
+      "teamId": "espn-12"
+    },
+    {
+      "overall": 152,
+      "playerId": "4432848",
+      "playerName": "Jaime Jaquez Jr.",
+      "round": 13,
+      "roundPick": 8,
+      "teamId": "espn-14"
+    },
+    {
+      "overall": 153,
+      "playerId": "4278078",
+      "playerName": "P.J. Washington",
+      "round": 13,
+      "roundPick": 9,
+      "teamId": "espn-11"
+    },
+    {
+      "overall": 154,
+      "playerId": "4395723",
+      "playerName": "Keldon Johnson",
+      "round": 13,
+      "roundPick": 10,
+      "teamId": "espn-5"
+    },
+    {
+      "overall": 155,
+      "playerId": "4431679",
+      "playerName": "Precious Achiuwa",
+      "round": 13,
+      "roundPick": 11,
+      "teamId": "espn-13"
+    },
+    {
+      "overall": 156,
+      "playerId": "3064290",
+      "playerName": "Aaron Gordon",
+      "round": 13,
+      "roundPick": 12,
+      "teamId": "espn-1"
+    }
+  ],
+  "rounds": 13,
+  "seasonId": "2027",
+  "teams": [
+    {
+      "id": "espn-2",
+      "name": "Fernando's Fantastic Team"
+    },
+    {
+      "id": "espn-6",
+      "name": "Crashboat"
+    },
+    {
+      "id": "espn-8",
+      "name": "El sobrao"
+    },
+    {
+      "id": "espn-7",
+      "name": "Indiana Naptown"
+    },
+    {
+      "id": "espn-9",
+      "name": "Ghost Menace"
+    },
+    {
+      "id": "espn-4",
+      "name": "Washulfios"
+    },
+    {
+      "id": "espn-12",
+      "name": "Los Murcielagos ⭐️"
+    },
+    {
+      "id": "espn-14",
+      "name": "Diego's Daring Team"
+    },
+    {
+      "id": "espn-11",
+      "name": "Los Saints"
+    },
+    {
+      "id": "espn-5",
+      "name": "Efe"
+    },
+    {
+      "id": "espn-13",
+      "name": "RDemption Season"
+    },
+    {
+      "id": "espn-1",
+      "name": "San Diego Vegas 🏆🏆"
+    }
+  ],
+  "title": "ESPN Fantasy Basketball Draft - Practice Draft for Tryhards Fantasy",
+  "unreadable": 0,
+  "version": 1
+}
